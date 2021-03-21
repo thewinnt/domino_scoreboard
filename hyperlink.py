@@ -1,4 +1,3 @@
-from abc import abstractmethod
 import pygame
 class hyperlink:
     def __init__(self, color, x, y, text):

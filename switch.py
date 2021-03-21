@@ -44,6 +44,6 @@ class switch(): # a switch that acts like a button, based on the button class
             return False
 
     def smart_draw(self, active, bkp_pos = None) -> bool:
-        '''Draws the switch and returns its click state'''
+        '''Draws the switch and returns if it's been clicked at recently'''
         self.draw(active, bkp_pos)
-        return self.is_over(bkp_pos) and pygame.mouse.get_pressed()[0]
+        return self.is_over(bkp_pos) and bool(pygame.event.get(pygame.MOUSEBUTTONDOWN))

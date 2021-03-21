@@ -126,3 +126,6 @@ dmypy.json
 
 # Development files
 dev_assets/
+
+# Config files
+*.json

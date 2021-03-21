@@ -28,21 +28,26 @@ color_bg = (0, 255, 255)
 color_board_outline = (0, 204, 204)
 color_board_bg = (0, 102, 102)
 
-global_config = config.config(config.get_file('config_global.json'), 'config_global.json')
+global_config = config.config({}, 'config_global.json') # load the config file
+global_config.load('config_global.json')
 global_config.get('voice', True)
 global_config.get('victories', True)
 global_config.get('progress', True)
-global_config.get('blink_time', 10)
+global_config.get('blink_time', 10) # for each setting we need, check if it's there and if it's not, set it to default value
 
 # predefine variables to use in definitions safely
-game_name = '<insert a meme here>' ## what's a good program without some easter eggs? :)
+game_name = '<insert a meme here>' ## i have achieved comedy
 players = 2 # i can put anything here, because in the end, in doesn't even matter and it gets overwritten as soon as you start the game
 scores = [0, 0]
 victories = [0, 0]
 goals = [2147483647, 2147483647]
 names = ['Player 1', 'Player 2']
 score_limit = 125
+
 blink_time = 5
+voice = True
+show_victories = True
+progress = True
 
 # utility functions grouped in a class
 class util:
@@ -64,10 +69,9 @@ class util:
         j = font.render(text, 1, color)
         surface.blit(j, pos)
 
-
 class menu:
-    def __init__(self, surface=pygame.display.get_surface()):
-        self.surface = surface
+    def __init__(self):
+        self.surface = window
 
         self.btn_new_file = button.button(color_board_outline, 490, 250, 300, 75, 'New file')
         self.btn_import = button.button(color_board_outline, 490, 335, 300, 75, 'Open file')
@@ -84,22 +88,21 @@ class menu:
             pass # new file, TBD
 
 class settings:
-    def __init__(self, surface=pygame.display.get_surface()):
-        self.surface = surface
-
+    def __init__(self):
+        self.surface = window
         # global settings
         self.voice_enabled = switch.switch(1180, 100, self.surface) ## note: a switch is 86x36 pixels
         self.show_victories = switch.switch(1180, 150, self.surface)
         self.show_goal_progress = switch.switch(1180, 200, self.surface)
-        self.blink_time = text_field.text_field(90, 40, blink_time, font_28, self.surface, 'int')
+        self.blink_time = text_field.text_field(1180, 250, 90, 40, blink_time, font_50, self.surface, 'int')
         # game settings
-        self.game_name = text_field.text_field(90, 40, game_name, font_28, self.surface)
-        self.score_lim = text_field.text_field(90, 40, score_limit, font_28, self.surface, 'float')
+        self.game_name = text_field.text_field(1180, 100, 90, 40, game_name, font_50, game_name, self.surface)
+        self.score_lim = text_field.text_field(1180, 150, 90, 40, score_limit, font_50, score_limit, self.surface, 'float')
         self.goto_player_name = button.button(color_board_outline, 10, 440, 90, 40, 'Player names')
         # player names
         self.player_names = []
         for i in range(players):
-            self.player_names.append(text_field.text_field(400, 40, names[i], font_28, self.surface))
+            self.player_names.append(text_field.text_field(1180, i*50 + 100, 400, 40, names[i], font_28, self.surface))
         # utility stuff
         self.go_back = hyperlink.hyperlink((0, 0, 0), 10, 0, '< Back')
 
@@ -107,26 +110,45 @@ class settings:
     
     def draw_global(self):
         global current_ui
+        global voice
+        global show_victories
+        global progress
         self.surface.fill(color_bg)
         if self.go_back.smart_draw(self.surface):
             current_ui = 'menu'
+            global_config.save()
         util.blit('Program settings', font_40, (20, 50), (100, 100, 100))
         util.blit('Use voice output', font_72, (20, 80))
         util.blit('Show player victory count', font_72, (20, 130))
         util.blit('Show goal progress', font_72, (20, 180))
         util.blit('Player visualization duration', font_72, (20, 230))
-        global_config.set('voice', self.voice_enabled.smart_draw(global_config.get('voice')))
-        global_config.set('victories', self.show_victories.smart_draw(global_config.get('victories')))
-        global_config.set('progress', self.show_goal_progress.smart_draw(global_config.get('progress')))
-        #global_config.set('blink_time', self.blink_time.draw(1180, 250))
+        if self.voice_enabled.smart_draw(global_config.get('voice')):
+            voice = not voice
+            global_config.set('voice', voice)
+        if self.show_victories.smart_draw(global_config.get('victories')):
+            show_victories = not show_victories
+            global_config.set('victories', show_victories)
+        if self.show_goal_progress.smart_draw(global_config.get('progress')):
+            progress = not progress
+            global_config.set('progress', progress)
+        temp_blink_time = self.blink_time.draw()
+        if not temp_blink_time == False:
+            global_config.set('blink_time', temp_blink_time)
+        
+    def draw_game(self):
+        self.draw_global()
+        util.blit('Game settings', font_40, (20, 280), (100, 100, 100))
+        util.blit('Game name', font_72, (20, 310))
+        util.blit('Score limit', font_72, (20, 360))
+
 
 class game:
-    def __init__(self, surface):
-        self.surface = surface
+    def __init__(self):
+        self.surface = window
 
-ui_menu = menu(window)
-ui_settings = settings(window)
-ui_game = game(window)
+ui_menu = menu()
+ui_settings = settings()
+ui_game = game()
 
 while True:
     if pygame.event.get(pygame.QUIT):

@@ -4,7 +4,7 @@ class config:
         '''A class for easier work with JSON config files'''
         self.conf = conf
         self.filename = filename
-        file = open(filename, 'w')
+        file = open(filename, 'r')
         file.close()
 
     def get(self, item, value_if_fails = 0, index = None):
