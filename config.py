@@ -4,15 +4,16 @@ class config:
         '''A class for easier work with JSON config files'''
         self.conf = conf
         self.filename = filename
-        file = open(filename, 'r')
-        file.close()
 
-    def get(self, item, value_if_fails = 0, index = None):
+    def get(self, item, value_if_fails = None, index = None):
         '''Returns the value of the item or if it fails, sets it to a select value'''
         try:
             return self.conf[item]
         except:
-            self.set(item, value_if_fails, index, True)
+            if not value_if_fails is None:
+                self.set(item, value_if_fails, index, True)
+            else:
+                return None
     
     def set(self, item, value, index = None, overwrite = False):
         '''Sets an item (or one of its items) in the config to the chosen value'''
@@ -46,9 +47,8 @@ class config:
 
 def get_file(filename):
     '''Loads a file like a config'''
-    try:
-        return json.load(filename)
-    except:
-        file = open(filename, 'w')
-        file.close()
-        return {}
+    with open(filename, 'r+', -1, 'utf-8') as file:
+        try:
+            return json.load(file)
+        except:
+            return {}

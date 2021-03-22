@@ -42,6 +42,9 @@ class text_field:
         if self.type == 'int':
             for event in pygame.event.get():
                 if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_RETURN:
+                        self.was_clicked = True
+                        break
                     if event.key == pygame.K_BACKSPACE:
                         try:
                             self.text = str(self.text)[:-1]
@@ -58,6 +61,9 @@ class text_field:
         elif self.type == 'float':
             for event in pygame.event.get():
                 if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_RETURN:
+                        self.was_clicked = True
+                        break
                     if event.key == pygame.K_BACKSPACE:
                         try:
                             self.text = str(self.text)[:-1]
@@ -74,6 +80,9 @@ class text_field:
         else:
             for event in pygame.event.get():
                 if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_RETURN:
+                        self.was_clicked = True
+                        break
                     if event.key == pygame.K_BACKSPACE:
                         try:
                             self.text = str(self.text)[:-1]
@@ -85,9 +94,9 @@ class text_field:
                     self.was_clicked = True
 
     def draw(self, update=True, text_color=(0, 0, 0)) -> str:
-        '''Usage: 'desired_string = field_name.draw(...)' where desired_string is the string you want to get as user input'''
+        '''Usage: 'temp = field_name.draw(...); if not temp is False: target = temp' where target is the string you want to get as user input'''
         self.was_clicked = pygame.mouse.get_pressed()[0]
-        if self.active:
+        if self.active and update:
             outline_color = self.outline_color_active
             outline_width = 4
             self._update()
@@ -98,12 +107,15 @@ class text_field:
         pygame.draw.rect(self.surface, self.field_color, (self.x, self.y, self.width, self.height))
         pygame.draw.rect(self.surface, outline_color, (self.x, self.y, self.width, self.height), outline_width)
 
-        text = self.font.render(str(self.text), 1, outline_color)
+        text = self.font.render(str(self.text), 4, outline_color)
         self.surface.blit(text, (self.x + 5, self.y))
 
         if update and self.was_clicked:
             self.was_clicked = False
+            temp = self.active
             self.active = self._is_over()
+            if temp == self.active or self.active:
+                return False
             if not self.active:
                 if self.type == 'string':
                     return self.text

@@ -30,3 +30,17 @@ class button():
             return True
         else:
             return False
+
+    def smart_draw(self, surface, font_size = 60, bkp_pos = None, default_color=(0, 204, 204), hover_color=(0, 255, 255), click_color=(0, 102, 102), text_color=(0, 0, 0), outline_color=(0, 0, 0)) -> bool:
+        '''Draws the button and returns its click state'''
+        to_return = False
+        if self.isOver(bkp_pos):
+            self.color = hover_color
+            if pygame.mouse.get_pressed()[0]:
+                self.color = click_color
+                pygame.event.clear()
+                to_return = True
+        if not self.isOver(bkp_pos) and not pygame.mouse.get_pressed()[0]:
+            self.color = default_color
+        self.draw(surface, outline_color, text_color, font_size)
+        return to_return
