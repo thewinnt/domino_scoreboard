@@ -31,14 +31,19 @@ class config:
 
     def load(self, filename):
         '''Adds the contents of a file to the config or replaces them'''
-        with open(filename, 'r', -1, 'utf-8') as file:
-            try:
-                data = json.load(file)
-            except:
-                print("File error: error while decoding config file - it may have been corrupted")
-                raise SyntaxError(f"couldn't load file {filename} - something went wrong")
-        for i in data.keys():
-            self.conf[i] = data[i]
+        try:
+            with open(filename, 'r', -1, 'utf-8') as file:
+                try:
+                    data = json.load(file)
+                except:
+                    print("File error: error while decoding config file - it may have been corrupted")
+                    raise SyntaxError(f"couldn't load file {filename} - something went wrong")
+            for i in data.keys():
+                self.conf[i] = data[i]
+        except:
+            f = open(filename, 'w')
+            f.close()
+            print("File error: specified file was not found")
 
     def reload(self, filename):
         '''Overwrites whatever there is in the config with data in the file'''

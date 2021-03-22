@@ -54,7 +54,7 @@ names = ['Player 1', 'Player 2']
 score_limit = 125
 log = []
 
-blink_time = 5
+blink_time = 10
 voice = True
 show_victories = True
 progress = True
