@@ -64,36 +64,37 @@ is_game_running = False
 error_messages = []
 
 game_conf_file = ''
+player_page = 0
 
-# utility functions grouped in a class
-class util:
-    def draw_rect(x1, y1, x2, y2, fill_color = (0, 204, 204), outline=3, outline_color = (0, 0, 0), surface=pygame.display.get_surface()):
-        '''A utility function that draws a rectangle with just one line'''
-        if x1 > x2 or y1 > y2:
-            raise ValueError("first set of coordinates must represent top left corner")
-        dx = x2 - x1
-        dy = y2 - y1
-        pygame.draw.rect(surface, fill_color, (x1, y1, dx, dy))
-        pygame.draw.rect(surface, outline_color, (x1, y1, dx, dy), outline)
-    def draw_button(button, font_size = 60, surface=pygame.display.get_surface(), default_color=(0, 204, 204), hover_color=(0, 255, 255), click_color=(0, 102, 102), text_color=(0, 0, 0), outline_color=(0, 0, 0)) -> bool:
-        '''Draws the button and returns its click state'''
-        to_return = False
-        if button.isOver():
-            button.color = hover_color
-            if pygame.mouse.get_pressed()[0]:
-                button.color = click_color
-                pygame.event.clear()
-                to_return = True
-        if not button.isOver() and not pygame.mouse.get_pressed()[0]:
-            button.color = default_color
-        button.draw(surface, outline_color, text_color, font_size)
-        return to_return
-    def blit(text, font, pos, center=False, color=(0, 0, 0), surface=pygame.display.get_surface()):
-        '''Blits some text to a chosen surface with only one line instead of two'''
-        j = font.render(text, 1, color)
-        if center:
-            pos = (pos[0]-j.get_width() / 2, pos[1])
-        surface.blit(j, pos)
+# utility functions
+def draw_rect(x1, y1, x2, y2, fill_color = (0, 204, 204), outline=3, outline_color = (0, 0, 0), surface=pygame.display.get_surface()):
+    '''A utility function that draws a rectangle with just one line'''
+    if x1 > x2 or y1 > y2:
+        raise ValueError("first set of coordinates must represent top left corner")
+    dx = x2 - x1
+    dy = y2 - y1
+    pygame.draw.rect(surface, fill_color, (x1, y1, dx, dy))
+    pygame.draw.rect(surface, outline_color, (x1, y1, dx, dy), outline)
+def draw_button(button, font_size = 60, surface=pygame.display.get_surface(), default_color=(0, 204, 204), hover_color=(0, 255, 255), click_color=(0, 102, 102), text_color=(0, 0, 0), outline_color=(0, 0, 0)) -> bool:
+    '''Draws the button and returns its click state'''
+    to_return = False
+    if button.isOver():
+        button.color = hover_color
+        if pygame.mouse.get_pressed()[0]:
+            button.color = click_color
+            pygame.event.clear()
+            to_return = True
+    if not button.isOver() and not pygame.mouse.get_pressed()[0]:
+        button.color = default_color
+    button.draw(surface, outline_color, text_color, font_size)
+    return to_return
+def blit(text, font, pos, center=False, color=(0, 0, 0), surface=pygame.display.get_surface()):
+    '''Blits some text to a chosen surface with only one line instead of two'''
+    j = font.render(text, 1, color)
+    if center:
+        pos = (pos[0]-j.get_width() / 2, pos[1])
+    surface.blit(j, pos)
+
 
 class menu:
     def __init__(self):
@@ -115,7 +116,7 @@ class menu:
         global current_ui
         global score_limit
         self.surface.fill(color_bg)
-        if util.draw_button(self.btn_import, 72, self.surface):
+        if draw_button(self.btn_import, 72, self.surface):
             filename = filedialog.askopenfilename(title='Load game', filetypes=[('Game file', '*.json'), ('All files', '*.*')])
             try:
                 with open(filename, 'r', -1, 'utf-8') as file:
@@ -142,11 +143,12 @@ class menu:
                 print('File error: some of the critical values were not found, cannot proceed')
                 return
             current_ui = 'game'
-        if util.draw_button(self.btn_settings, 72, self.surface):
+        if draw_button(self.btn_settings, 72, self.surface):
             current_ui = 'settings'
-        if util.draw_button(self.btn_new_file, 72, self.surface):
+        if draw_button(self.btn_new_file, 72, self.surface):
             current_ui = 'setup'
-        util.blit(game_version, font_28, (10, 690))
+        blit(game_version, font_28, (10, 690))
+
 
 class settings:
     def __init__(self):
@@ -179,13 +181,14 @@ class settings:
         if self.go_back.smart_draw(self.surface):
             current_ui = 'menu'
             global_config.save()
-            if is_game_running:
-                game_config.save()
-        util.blit('Program settings', font_40, (20, 50), False, (100, 100, 100))
-        util.blit('Use voice output', font_72, (20, 80))
-        util.blit('Show player victory count', font_72, (20, 130))
-        util.blit('Show goal progress', font_72, (20, 180))
-        util.blit('Player visualization duration', font_72, (20, 230))
+            if is_game_running and game_conf_file:
+                with open(game_conf_file, 'w', -1, 'utf-8') as file:
+                    file.write(json.dumps(game_config, indent=4, ensure_ascii=False))
+        blit('Program settings', font_40, (20, 50), False, (100, 100, 100))
+        blit('Use voice output', font_72, (20, 80))
+        blit('Show player victory count', font_72, (20, 130))
+        blit('Show goal progress', font_72, (20, 180))
+        blit('Player visualization duration', font_72, (20, 230))
         if self.voice_enabled.smart_draw(global_config.get('voice')):
             voice = not voice
             global_config.set('voice', voice)
@@ -201,20 +204,28 @@ class settings:
             global_config.set('blink_time', temp_blink_time)
         if is_game_running:
             self._draw_game()
-        
+
     def _draw_game(self):
         global current_ui
-        util.blit('Game settings', font_40, (20, 280), (100, 100, 100))
-        util.blit('Game name', font_72, (20, 310))
-        util.blit('Score limit', font_72, (20, 360))
-        if util.draw_button(self.goto_player_name, 72, self.surface):
+        global game_name
+        global score_limit
+        blit('Game settings', font_40, (20, 280), (100, 100, 100))
+        blit('Game name', font_72, (20, 310))
+        blit('Score limit', font_72, (20, 360))
+        if draw_button(self.goto_player_name, 72, self.surface):
             current_ui = 'player_edit'
-    
+        temp = self.game_name.draw()
+        if not temp is False:
+            game_name = temp
+        temp = self.score_lim.draw()
+        if not temp is False:
+            score_limit = temp
+
     def draw_player_list(self):
         global current_ui
         self.surface.fill(color_bg)
         for i in range(players):
-            util.blit(f'Player {i+1}', font_72, (20+415*(i%3), (i//3) * 100 + 100))
+            blit(f'Player {i+1}', font_72, (20+415*(i%3), (i//3) * 100 + 100))
             temp = self.player_names[i].draw()
             if not temp is False:
                 names[i] = temp
@@ -228,6 +239,7 @@ class settings:
                 with open(game_conf_file, 'w', -1, 'utf-8') as file:
                     file.write(json.dumps(game_config, indent=4, ensure_ascii=False))
 
+
 class game:
     def __init__(self):
         self.surface = window
@@ -236,6 +248,8 @@ class game:
         self.score_lim = text_field.text_field(800, 230, 460, 65, score_limit, font_72, self.surface, 'float')
         self.set_player_names = button.button(color_board_outline, 20, 300, 400, 65, 'Set player names')
         self.start = button.button(color_board_outline, 950, 630, 310, 75, 'Save and start')
+        self.go_menu = hyperlink.hyperlink((0, 0, 0), 10, 0, '< Main Menu')
+        self.start_no_file = button.button(color_board_outline, 585, 630, 350, 75, 'Start without saving')
 
         self.no_file = button.button((168, 0, 0), 425, 375, 200, 60, 'Continue')
         self.try_again = button.button(color_board_outline, 655, 375, 200, 60, 'Back')
@@ -251,10 +265,10 @@ class game:
         global game_config
         self.surface.fill(color_bg)
         text = font_96.render('New game', 1, (0, 0, 0))
-        self.surface.blit(text, (640 - text.get_width()/2, 10)) # we can't use util.blit() because it can't center the text around a point
-        util.blit('Game name', font_72, (20, 80))
-        util.blit('Number of players', font_72, (20, 150))
-        util.blit('Score to lose (score limit)', font_72, (20, 220))
+        self.surface.blit(text, (640 - text.get_width()/2, 10)) # we can't use blit() because it can't center the text around a point
+        blit('Game name', font_72, (20, 80))
+        blit('Number of players', font_72, (20, 150))
+        blit('Score to lose (score limit)', font_72, (20, 220))
         error_messages = []
         if players < 2:
             error_messages.append('There must be at least two players')
@@ -265,7 +279,7 @@ class game:
         if error_messages:
             j = 0
             for i in error_messages:
-                util.blit(i, font_50, (20, j*50 + 360), False, (200, 0, 0))
+                blit(i, font_50, (20, j*50 + 370), False, (200, 0, 0))
                 j += 1
         temp = self.game_name.draw()
         if not temp is False:
@@ -279,7 +293,9 @@ class game:
         if not temp is False:
             score_limit = temp
             game_config['score_limit'] = temp
-        if util.draw_button(self.set_player_names, 72, self.surface):
+        if self.go_menu.smart_draw(self.surface):
+            current_ui = 'menu'
+        if draw_button(self.set_player_names, 72, self.surface) and players <= 18:
             try:
                 names[players-1]
                 game_config['names'][players-1]
@@ -287,7 +303,9 @@ class game:
                 names = ['player'] * players
                 game_config['names'] = ['player'] * players
             current_ui = 'player_setup'
-        if util.draw_button(self.start, 72, self.surface):
+        if draw_button(self.start_no_file, 72, self.surface) and not error_messages:
+            current_ui = 'game'
+        if draw_button(self.start, 72, self.surface):
             if not error_messages:
                 game_conf_file = filedialog.asksaveasfilename(defaultextension = '.json', filetypes = [('JSON files', '*.json'), ('All files', '*.*')], title = 'Save game data')
                 try:
@@ -298,15 +316,15 @@ class game:
                         game_config['log'] = log
                         file.write(json.dumps(game_config, indent=4, ensure_ascii=False))
                 except:
-                    util.draw_rect(410, 270, 870, 450)
-                    util.draw_rect(410, 270, 870, 300, color_bg)
-                    util.blit('No file specified', font_28, (640, 270), True)
-                    util.blit("You didn't choose a file, which means that", font_40, (640, 300), True)
-                    util.blit("nothing will be saved. Continue?", font_40, (640, 330), True)
+                    draw_rect(410, 270, 870, 450)
+                    draw_rect(410, 270, 870, 300, color_bg)
+                    blit('No file specified', font_28, (640, 270), True)
+                    blit("You didn't choose a file, which means that", font_40, (640, 300), True)
+                    blit("nothing will be saved. Continue?", font_40, (640, 330), True)
                     while True:
-                        if util.draw_button(self.no_file, 60, self.surface, (168, 0, 0), (200, 0, 0), (128, 0, 0)):
+                        if draw_button(self.no_file, 60, self.surface, (168, 0, 0), (200, 0, 0), (128, 0, 0)):
                             break
-                        if util.draw_button(self.try_again):
+                        if draw_button(self.try_again):
                             return
                         pygame.event.get()
                         pygame.display.update()
@@ -315,6 +333,7 @@ class game:
 
     def draw_game(self):
         pass
+
 
 ui_menu = menu()
 ui_settings = settings()

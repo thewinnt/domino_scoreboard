@@ -26,4 +26,4 @@ class hyperlink:
     def smart_draw(self, surface, font_size = 60, bkp_pos = None) -> bool:
         '''Draws the link and returns its click state'''
         self._draw(surface, font_size)
-        return self._is_over(bkp_pos) and pygame.mouse.get_pressed()[0]
+        return self._is_over(bkp_pos) and pygame.event.get(pygame.MOUSEBUTTONDOWN)

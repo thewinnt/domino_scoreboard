@@ -51,11 +51,11 @@ class text_field:
                         except:
                             pass
                     try:
-                        lol = int(event.unicode)
+                        lol = int(event.unicode + '1')
                     except ValueError:
                         lol = 5
                     else:
-                        self.text = str(self.text) + str(lol)
+                        self.text = str(self.text) + event.unicode
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     self.was_clicked = True
         elif self.type == 'float':
