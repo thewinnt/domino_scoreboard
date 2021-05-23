@@ -7,6 +7,9 @@ import switch
 import config
 import hyperlink
 import text_field
+import repeated_timer
+import threading
+from time import sleep
 from tkinter import filedialog
 
 useless = tkinter.Tk()
@@ -34,6 +37,10 @@ current_ui = "menu"
 color_bg = (0, 255, 255)
 color_board_outline = (0, 204, 204)
 color_board_bg = (0, 102, 102)
+color_red = (255, 0, 0)
+color_green = (44, 242, 0)
+color_info_bg = (255, 140, 26)
+color_info_outline = (195, 204, 217)
 
 global_config = config.config({}, 'config_global.json') # load the config file
 global_config.load('config_global.json')
@@ -44,6 +51,19 @@ global_config.get('blink_time', 10) # for each setting we need, check if it's th
 
 game_config = {}
 
+font_score = {'-': pygame.image.load('assets/hyphen.png').convert_alpha(),
+              '.': pygame.image.load('assets/dot.png').convert_alpha(),
+              '0': pygame.image.load('assets/number_0.png').convert_alpha(),
+              '1': pygame.image.load('assets/number_1.png').convert_alpha(),
+              '2': pygame.image.load('assets/number_2.png').convert_alpha(),
+              '3': pygame.image.load('assets/number_3.png').convert_alpha(),
+              '4': pygame.image.load('assets/number_4.png').convert_alpha(),
+              '5': pygame.image.load('assets/number_5.png').convert_alpha(),
+              '6': pygame.image.load('assets/number_6.png').convert_alpha(),
+              '7': pygame.image.load('assets/number_7.png').convert_alpha(),
+              '8': pygame.image.load('assets/number_8.png').convert_alpha(),
+              '9': pygame.image.load('assets/number_9.png').convert_alpha()}
+
 # predefine variables to use in definitions safely
 game_name = '' ## there used to be '<insert a meme here>' here  ## i have not achieved comedy
 players = 2 # i can not put anything here, because in the end, it does matter and it doesn't get overwritten as soon as you start the game
@@ -53,6 +73,7 @@ goals = [2147483647, 2147483647]
 names = ['Player 1', 'Player 2']
 score_limit = 125
 log = []
+field_colors = [0, 0]
 
 blink_time = 10
 voice = True
@@ -95,6 +116,15 @@ def blit(text, font, pos, center=False, color=(0, 0, 0), surface=pygame.display.
         pos = (pos[0]-j.get_width() / 2, pos[1])
     surface.blit(j, pos)
 
+# blink control functions
+def blink_half_second_multiple(player, color, count): # makes a player's field to change color for half a second
+    for i in range(count):
+        global field_colors
+        field_colors[player] = color
+        sleep(0.5)
+        field_colors[player] = 0
+        sleep(0.5)
+# blink_thread = threading.Thread(target=blink_half_second_multiple, name='blink_thread', args=(1, 1, 10)) ## doesn't work
 
 class menu:
     def __init__(self):
@@ -254,6 +284,8 @@ class game:
         self.no_file = button.button((168, 0, 0), 425, 375, 200, 60, 'Continue')
         self.try_again = button.button(color_board_outline, 655, 375, 200, 60, 'Back')
 
+        self.color_index = [color_board_bg, color_red, color_green]
+
     def draw_setup(self):
         global game_name
         global players
@@ -332,9 +364,22 @@ class game:
                 current_ui = 'game'
 
     def draw_game(self):
-        pass
-
-
+        # draw the stuff
+        self.surface.fill(color_bg)
+        pygame.draw.rect(self.surface, color_board_bg, (10, 10, 1060, 600))
+        pygame.draw.rect(self.surface, self.color_index[field_colors[player_page * 3]], (10, 10, 1060, 200))
+        #  TO DO: render text
+        # draw the box for it (slightly bigger than the text)
+        # draw the text itself (in the middle of that box)
+        # draw the score
+        try:
+            pygame.draw.rect(self.surface, self.color_index[field_colors[player_page * 3 + 1]], (10, 210, 1060, 200))
+            # repeat for other players
+            pygame.draw.rect(self.surface, self.color_index[field_colors[player_page * 3 + 2]], (10, 410, 1060, 200))
+        except:
+            pass
+        pygame.draw.rect(self.surface, color_board_outline, (10, 10, 1060, 600), 4)
+        
 ui_menu = menu()
 ui_settings = settings()
 ui_game = game()
