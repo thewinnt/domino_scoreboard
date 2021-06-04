@@ -7,8 +7,7 @@ import switch
 import config
 import hyperlink
 import text_field
-import repeated_timer
-import threading
+import random
 from time import sleep
 from tkinter import filedialog
 
@@ -31,6 +30,9 @@ font_40 = pygame.font.Font('assets/denhome.otf', 40)
 font_50 = pygame.font.Font('assets/denhome.otf', 50)
 font_72 = pygame.font.Font('assets/denhome.otf', 72)
 font_96 = pygame.font.Font('assets/denhome.otf', 96)
+font_info = pygame.font.Font('assets/arial.ttf', 32)
+font_log = pygame.font.Font('assets/arialb.ttf', 20)
+font_data = pygame.font.Font('assets/arial.ttf', 28)
 
 current_ui = "menu"
 
@@ -41,6 +43,10 @@ color_red = (255, 0, 0)
 color_green = (44, 242, 0)
 color_info_bg = (255, 140, 26)
 color_info_outline = (195, 204, 217)
+color_log_index = (87, 94, 117)
+color_log_background = (252, 102, 44)
+color_log_outline = (223, 91, 38)
+color_log_fill = (229, 240, 255)
 
 global_config = config.config({}, 'config_global.json') # load the config file
 global_config.load('config_global.json')
@@ -63,10 +69,35 @@ font_score = {'-': pygame.image.load('assets/hyphen.png').convert_alpha(),
               '7': pygame.image.load('assets/number_7.png').convert_alpha(),
               '8': pygame.image.load('assets/number_8.png').convert_alpha(),
               '9': pygame.image.load('assets/number_9.png').convert_alpha()}
+font_offsets = {'-': 7,
+                '.': -55,
+                '0': 72,
+                '1': 78,
+                '2': 71,
+                '3': 77,
+                '4': 74,
+                '5': 79,
+                '6': 71,
+                '7': 71,
+                '8': 76,
+                '9': 75}
+font_player_number = {'-': pygame.transform.rotozoom(font_score['-'], 0, 0.5),
+                      '.': pygame.transform.rotozoom(font_score['.'], 0, 0.5),
+                      '0': pygame.transform.rotozoom(font_score['0'], 0, 0.5),
+                      '1': pygame.transform.rotozoom(font_score['1'], 0, 0.5),
+                      '2': pygame.transform.rotozoom(font_score['2'], 0, 0.5),
+                      '3': pygame.transform.rotozoom(font_score['3'], 0, 0.5),
+                      '4': pygame.transform.rotozoom(font_score['4'], 0, 0.5),
+                      '5': pygame.transform.rotozoom(font_score['5'], 0, 0.5),
+                      '6': pygame.transform.rotozoom(font_score['6'], 0, 0.5),
+                      '7': pygame.transform.rotozoom(font_score['7'], 0, 0.5),
+                      '8': pygame.transform.rotozoom(font_score['8'], 0, 0.5),
+                      '9': pygame.transform.rotozoom(font_score['9'], 0, 0.5)}
 
 # predefine variables to use in definitions safely
 game_name = '' ## there used to be '<insert a meme here>' here  ## i have not achieved comedy
 players = 2 # i can not put anything here, because in the end, it does matter and it doesn't get overwritten as soon as you start the game
+max_page = 0
 scores = [0, 0]
 victories = [0, 0]
 goals = [2147483647, 2147483647]
@@ -86,6 +117,9 @@ error_messages = []
 
 game_conf_file = ''
 player_page = 0
+
+command = ''
+log_cursor = 0
 
 # utility functions
 def draw_rect(x1, y1, x2, y2, fill_color = (0, 204, 204), outline=3, outline_color = (0, 0, 0), surface=pygame.display.get_surface()):
@@ -115,16 +149,26 @@ def blit(text, font, pos, center=False, color=(0, 0, 0), surface=pygame.display.
     if center:
         pos = (pos[0]-j.get_width() / 2, pos[1])
     surface.blit(j, pos)
+def draw_text_box(text, font, pos, surface, min_width=100, centered=True, box_color=color_info_bg, box_outline_color=color_info_outline, text_color=(255, 255, 255)):
+    text = str(text) # this function draws a text box that looks like a Scratch variable (no input available)
+    rendered_text = font.render(text, 1, text_color, box_color)
+    text_area= font.size(text)
+    box_width = max(min_width - 10, text_area[0]) + 14
+    pygame.draw.rect(surface, box_color, (pos[0], pos[1], box_width, 50), 0, 8)
+    pygame.draw.rect(surface, box_outline_color, (pos[0], pos[1], box_width, 50), 3, 8)
+    if centered:
+        surface.blit(rendered_text, (pos[0] + box_width / 2 - text_area[0] / 2, pos[1] + 25 - text_area[1] / 2))
+    else:
+        surface.blit(rendered_text, (pos[0] + 10, pos[1] + 25 - text_area[1] / 2))
 
 # blink control functions
-def blink_half_second_multiple(player, color, count): # makes a player's field to change color for half a second
-    for i in range(count):
-        global field_colors
-        field_colors[player] = color
-        sleep(0.5)
-        field_colors[player] = 0
-        sleep(0.5)
-# blink_thread = threading.Thread(target=blink_half_second_multiple, name='blink_thread', args=(1, 1, 10)) ## doesn't work
+#def blink_half_second_multiple(player, color, count): # makes a player's field to change color for half a second
+#    for i in range(count):
+#        global field_colors
+#        field_colors[player] = color
+#        sleep(0.5)
+#        field_colors[player] = 0
+#        sleep(0.5)    ## will be replaced
 
 class menu:
     def __init__(self):
@@ -286,6 +330,8 @@ class game:
 
         self.color_index = [color_board_bg, color_red, color_green]
 
+        self.command_line = text_field.text_field(10, 660, 950, 50, command, font_72, self.surface)
+
     def draw_setup(self):
         global game_name
         global players
@@ -294,10 +340,15 @@ class game:
         global error_messages
         global game_conf_file
         global names
+        global goals
+        global scores
+        global victories
+        global field_colors
         global game_config
+        global max_page
+        global log_cursor
         self.surface.fill(color_bg)
-        text = font_96.render('New game', 1, (0, 0, 0))
-        self.surface.blit(text, (640 - text.get_width()/2, 10)) # we can't use blit() because it can't center the text around a point
+        blit('New game', font_96, (640, 10), True)
         blit('Game name', font_72, (20, 80))
         blit('Number of players', font_72, (20, 150))
         blit('Score to lose (score limit)', font_72, (20, 220))
@@ -320,7 +371,17 @@ class game:
         temp = self.player_count.draw()
         if not temp is False:
             players = temp
+            if players % 3:
+                max_page = players // 3
+            else:
+                max_page = players // 3 - 1
             game_config['player_count'] = temp
+            try:
+                names[players-1]
+                game_config['names'][players-1]
+            except:
+                names = ['Player'] * players
+                game_config['names'] = ['player'] * players
         temp = self.score_lim.draw()
         if not temp is False:
             score_limit = temp
@@ -336,6 +397,10 @@ class game:
                 game_config['names'] = ['player'] * players
             current_ui = 'player_setup'
         if draw_button(self.start_no_file, 72, self.surface) and not error_messages:
+            field_colors = [0] * players
+            scores = [0] * players
+            goals = [0] * players
+            victories = [0] * players
             current_ui = 'game'
         if draw_button(self.start, 72, self.surface):
             if not error_messages:
@@ -364,21 +429,116 @@ class game:
                 current_ui = 'game'
 
     def draw_game(self):
+        global player_page
+        global log_cursor
         # draw the stuff
         self.surface.fill(color_bg)
-        pygame.draw.rect(self.surface, color_board_bg, (10, 10, 1060, 600))
-        pygame.draw.rect(self.surface, self.color_index[field_colors[player_page * 3]], (10, 10, 1060, 200))
-        #  TO DO: render text
-        # draw the box for it (slightly bigger than the text)
-        # draw the text itself (in the middle of that box)
-        # draw the score
+        first = player_page * 3
+        second = player_page * 3 + 1
+        third = player_page * 3 + 2
+        score_first = str(scores[first])
         try:
-            pygame.draw.rect(self.surface, self.color_index[field_colors[player_page * 3 + 1]], (10, 210, 1060, 200))
-            # repeat for other players
-            pygame.draw.rect(self.surface, self.color_index[field_colors[player_page * 3 + 2]], (10, 410, 1060, 200))
+            score_second = str(scores[second])
+            score_third = str(scores[third]) # these are the player score in text form
         except:
             pass
+
+        pygame.draw.rect(self.surface, color_board_bg, (10, 10, 1060, 600))
+        pygame.draw.rect(self.surface, self.color_index[field_colors[first]], (10, 10, 1060, 200))
+        # draw the text
+        draw_text_box(names[first], font_info, (120, 31), self.surface)
+        draw_text_box(victories[first], font_info, (120, 85), self.surface)
+        if goals[first]:
+            draw_text_box(goals[first], font_info, (120, 139), self.surface)
+        # draw the score
+        for i in range(len(score_first)):
+            j = i + 1
+            self.surface.blit(font_score[score_first[-j]], (1050 - 92 * j, 110 - font_offsets[score_first[-j]]))
+        try:
+            pygame.draw.rect(self.surface, self.color_index[field_colors[second]], (10, 210, 1060, 200))
+            draw_text_box(names[second], font_info, (120, 231), self.surface)
+            draw_text_box(victories[second], font_info, (120, 285), self.surface)
+            if goals[second]:
+                draw_text_box(goals[second], font_info, (120, 339), self.surface)
+            # draw the score
+            for i in range(len(score_second)):
+                j = i + 1
+                self.surface.blit(font_score[score_second[-j]], (1050 - 92 * j, 310 - font_offsets[score_second[-j]]))
+            pygame.draw.rect(self.surface, self.color_index[field_colors[third]], (10, 410, 1060, 200))
+            draw_text_box(names[third], font_info, (120, 431), self.surface)
+            draw_text_box(victories[third], font_info, (120, 485), self.surface)
+            if goals[third]:
+                draw_text_box(goals[third], font_info, (120, 539), self.surface)
+            # draw the score
+            for i in range(len(score_third)):
+                j = i + 1
+                self.surface.blit(font_score[score_third[-j]], (1050 - 92 * j, 510 - font_offsets[score_third[-j]]))
+        except:
+            pass
+        
+        if player_page < 3:
+            self.surface.blit(font_player_number[str(first + 1)], (45, 80 - font_offsets[str(first + 1)] // 2))
+            if players > player_page * 3 + 1:
+                self.surface.blit(font_player_number[str(second + 1)], (45, 280 - font_offsets[str(second + 1)] // 2))
+            if players > player_page * 3 + 2:
+                self.surface.blit(font_player_number[str(third + 1)], (45, 480 - font_offsets[str(third + 1)] // 2))
+        else:
+            self.surface.blit(font_player_number['1'], (20, 80 - font_offsets['1'] // 2))
+            self.surface.blit(font_player_number[str(first + 1)[1]], (65, 80 - font_offsets[str(first + 1)[1]] // 2))
+            if players > player_page * 3 + 1:
+                self.surface.blit(font_player_number['1'], (20, 280 - font_offsets['1'] // 2))
+                self.surface.blit(font_player_number[str(second + 1)[1]], (65, 280 - font_offsets[str(second + 1)[1]] // 2))
+            if players > player_page * 3 + 2:
+                self.surface.blit(font_player_number['1'], (20, 480 - font_offsets['1'] // 2))
+                self.surface.blit(font_player_number[str(third + 1)[1]], (65, 480 - font_offsets[str(third + 1)[1]] // 2))
         pygame.draw.rect(self.surface, color_board_outline, (10, 10, 1060, 600), 4)
+
+        draw_text_box(str(score_limit), font_info, (1080, 615), self.surface)
+        draw_text_box(game_name, font_info, (1080, 670), self.surface)
+        blit('Score limit:', font_40, (972, 620))
+        blit('Game name:', font_40, (970, 675))
+
+        # draw the log
+        # draw the outline
+        pygame.draw.rect(self.surface, color_log_fill, (1073, 10, 205, 600), 0, 8)
+        pygame.draw.rect(self.surface, (255, 255, 255), (1073, 10, 205, 40), 0, 8, 8, 8, 0, 0)
+        pygame.draw.rect(self.surface, (255, 255, 255), (1073, 570, 205, 40), 0, 8, 0, 0, 8, 8)
+        pygame.draw.rect(self.surface, color_info_outline, (1073, 10, 205, 600), 3, 8)
+        # draw the info
+        blit('Game log', font_log, (1175, 20), True, color_log_index)
+        blit(f'Entries: {len(log)}', font_log, (1175, 577), True, color_log_index)
+        # draw the entries
+        for i in range(min(len(log) - log_cursor, 10)):
+            blit(str(i + 1 + log_cursor), font_log, (1079, 65 + 50*i), False, color_log_index)
+            pygame.draw.rect(self.surface, color_log_background, (1095 + 10*(len(str(i + 1 + log_cursor)) - 1), 55 + 50*i, 177 - 10*(len(str(i + 1 + log_cursor)) - 1), 45), 0, 8)
+            pygame.draw.rect(self.surface, color_log_outline, (1095 + 10*(len(str(i + 1 + log_cursor)) - 1), 55 + 50*i, 177 - 10*(len(str(i + 1 + log_cursor)) - 1), 45), 3, 8)
+            blit(log[i + log_cursor], font_data, (1100 + 10*(len(str(i + 1 + log_cursor)) - 1), 58 + 50*i), False, (255, 255, 255))
+        
+        if pygame.key.get_pressed()[pygame.K_DOWN]:
+            log_cursor += 1
+        if pygame.key.get_pressed()[pygame.K_UP]:
+            log_cursor -= 1
+            if log_cursor < 0:
+                log_cursor = 0
+        for event in pygame.event.get(pygame.KEYDOWN):
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_LEFT:
+                    player_page -= 1
+                    if player_page < 0:
+                        player_page = max_page
+                if event.key == pygame.K_RIGHT:
+                    player_page += 1
+                    if player_page > max_page:
+                        player_page = 0
+        blit('Enter the command here:', font_40, (10, 610))
+
+    def process_commands(self):
+        # to do
+        global command
+        temp = self.command_line.draw()
+        if not temp is False:
+            command = temp
+        
         
 ui_menu = menu()
 ui_settings = settings()
@@ -398,5 +558,6 @@ while True:
         ui_game.draw_setup()
     elif current_ui == 'game':
         ui_game.draw_game()
+        ui_game.process_commands()
     pygame.display.update()
     gametick.tick(max_fps)
