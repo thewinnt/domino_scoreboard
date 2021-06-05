@@ -7,7 +7,7 @@ import switch
 import config
 import hyperlink
 import text_field
-import random
+import fancy_blit
 from time import sleep
 from tkinter import filedialog
 
@@ -30,6 +30,7 @@ font_40 = pygame.font.Font('assets/denhome.otf', 40)
 font_50 = pygame.font.Font('assets/denhome.otf', 50)
 font_72 = pygame.font.Font('assets/denhome.otf', 72)
 font_96 = pygame.font.Font('assets/denhome.otf', 96)
+font_cmd = pygame.font.Font('assets/dhbold.ttf', 48)
 font_info = pygame.font.Font('assets/arial.ttf', 32)
 font_log = pygame.font.Font('assets/arialb.ttf', 20)
 font_data = pygame.font.Font('assets/arial.ttf', 28)
@@ -120,6 +121,8 @@ player_page = 0
 
 command = ''
 log_cursor = 0
+
+was_pressed = False
 
 # utility functions
 def draw_rect(x1, y1, x2, y2, fill_color = (0, 204, 204), outline=3, outline_color = (0, 0, 0), surface=pygame.display.get_surface()):
@@ -330,7 +333,7 @@ class game:
 
         self.color_index = [color_board_bg, color_red, color_green]
 
-        self.command_line = text_field.text_field(10, 660, 950, 50, command, font_72, self.surface)
+        self.command_line = text_field.text_field(10, 660, 950, 50, command, font_cmd, self.surface)
 
     def draw_setup(self):
         global game_name
@@ -431,6 +434,9 @@ class game:
     def draw_game(self):
         global player_page
         global log_cursor
+        global was_pressed
+        if not pygame.key.get_pressed()[pygame.K_LEFT] and not pygame.key.get_pressed()[pygame.K_RIGHT]:
+            was_pressed = False
         # draw the stuff
         self.surface.fill(color_bg)
         first = player_page * 3
@@ -516,29 +522,30 @@ class game:
         
         if pygame.key.get_pressed()[pygame.K_DOWN]:
             log_cursor += 1
+            if log_cursor >= len(log):
+                log_cursor = len(log) - 1
         if pygame.key.get_pressed()[pygame.K_UP]:
             log_cursor -= 1
             if log_cursor < 0:
                 log_cursor = 0
-        for event in pygame.event.get(pygame.KEYDOWN):
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_LEFT:
-                    player_page -= 1
-                    if player_page < 0:
-                        player_page = max_page
-                if event.key == pygame.K_RIGHT:
-                    player_page += 1
-                    if player_page > max_page:
-                        player_page = 0
+        if pygame.key.get_pressed()[pygame.K_LEFT] and not was_pressed:
+            player_page -= 1
+            if player_page < 0:
+                player_page = max_page
+            was_pressed = True
+        if pygame.key.get_pressed()[pygame.K_RIGHT] and not was_pressed:
+            player_page += 1
+            if player_page > max_page:
+                player_page = 0
+            was_pressed = True
         blit('Enter the command here:', font_40, (10, 610))
 
     def process_commands(self):
         # to do
         global command
-        temp = self.command_line.draw()
+        temp = self.command_line.draw(fancy_format=False)
         if not temp is False:
             command = temp
-        
         
 ui_menu = menu()
 ui_settings = settings()

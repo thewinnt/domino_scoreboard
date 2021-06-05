@@ -1,4 +1,6 @@
 import pygame
+import fancy_blit
+
 class text_field:
     def __init__(self, x, y, width, height, text, font, surface, type_='string', outline_color_active=(0, 0, 0), outline_color_inactive=(50, 50, 50), field_color=(240, 240, 240)):
         '''A text field class that can automatically draw and update itself'''
@@ -93,7 +95,7 @@ class text_field:
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     self.was_clicked = True
 
-    def draw(self, update=True, text_color=(0, 0, 0)) -> str:
+    def draw(self, update=True, text_color=(0, 0, 0), fancy_format=True) -> str:
         '''Usage: 'temp = field_name.draw(...); if not temp is False: target = temp' where target is the string you want to get as user input'''
         self.was_clicked = pygame.mouse.get_pressed()[0]
         if self.active and update:
@@ -105,10 +107,14 @@ class text_field:
             outline_width = 2
 
         pygame.draw.rect(self.surface, self.field_color, (self.x, self.y, self.width, self.height))
-        pygame.draw.rect(self.surface, outline_color, (self.x, self.y, self.width, self.height), outline_width)
 
-        text = self.font.render(str(self.text), 4, outline_color)
-        self.surface.blit(text, (self.x + 5, self.y))
+        if not fancy_format or self.type != 'string':
+            text = self.font.render(str(self.text), 4, text_color, self.field_color)
+            self.surface.blit(text, (self.x + 5, self.y))
+        else:
+            fancy_blit.fancy_blit(self.text, self.font, (self.x, self.y), self.surface, text_color, self.field_color)
+
+        pygame.draw.rect(self.surface, outline_color, (self.x, self.y, self.width, self.height), outline_width)
 
         if update and self.was_clicked:
             self.was_clicked = False
