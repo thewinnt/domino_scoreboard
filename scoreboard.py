@@ -34,6 +34,7 @@ font_cmd = pygame.font.Font('assets/dhbold.ttf', 48)
 font_info = pygame.font.Font('assets/arial.ttf', 32)
 font_log = pygame.font.Font('assets/arialb.ttf', 20)
 font_data = pygame.font.Font('assets/arial.ttf', 28)
+font_msg = pygame.font.Font('assets/dhbold.ttf', 40)
 
 current_ui = "menu"
 
@@ -123,6 +124,9 @@ command = ''
 log_cursor = 0
 
 was_pressed = False
+is_updating = False
+
+message = 'Enter the command here:'
 
 # utility functions
 def draw_rect(x1, y1, x2, y2, fill_color = (0, 204, 204), outline=3, outline_color = (0, 0, 0), surface=pygame.display.get_surface()):
@@ -334,6 +338,24 @@ class game:
         self.color_index = [color_board_bg, color_red, color_green]
 
         self.command_line = text_field.text_field(10, 660, 950, 50, command, font_cmd, self.surface)
+        self.cmd_desc = {'score': '§fscore <add|remove|set|limit> §b...',
+                         'double': '§fdouble §b<0|6> §6<player: int>',
+                         'rename': '§frename §b<player: int|game> §6<name: str>',
+                         'menu': '§fmenu §c[no_save]',
+                         'file': '§ffile <set|reload|save|open> §b...',
+                         'help': '§fhelp'} # the descriptions of the commands
+
+        self.set_desc = {'add': '§fscore add §b<player: int|all> §6<amount: float>',
+                         'remove': '§fscore remove §b<player: int|all> §6<amount: float>',
+                         'set': '§fscore set §b<player: int> §6<amount: float>',
+                         'add all': '§fscore add §ball §6<amount: float> §a[<amount: float> for each player in order]',
+                         'remove all': '§fscore remove §ball §6<amount: float> §a[<amount: float> for each player in order]',
+                         'limit': '§fscore limit <set|mode>'} # descriptions of the set subcommands
+
+        self.file_desc = {'set': '§ffile set §b[path: str]',
+                          'reload': '§ffile §breload',
+                          'save': '§ffile §bsave',
+                          'open': '§ffile open §b[path: str]',}
 
     def draw_setup(self):
         global game_name
@@ -367,7 +389,7 @@ class game:
             for i in error_messages:
                 blit(i, font_50, (20, j*50 + 370), False, (200, 0, 0))
                 j += 1
-        temp = self.game_name.draw()
+        temp = self.game_name.draw(fancy_format=False)
         if not temp is False:
             game_name = temp
             game_config['name'] = temp
@@ -449,7 +471,7 @@ class game:
         except:
             pass
 
-        pygame.draw.rect(self.surface, color_board_bg, (10, 10, 1060, 600))
+        pygame.draw.rect(self.surface, color_board_bg, (10, 10, 1060, 645))
         pygame.draw.rect(self.surface, self.color_index[field_colors[first]], (10, 10, 1060, 200))
         # draw the text
         draw_text_box(names[first], font_info, (120, 31), self.surface)
@@ -497,11 +519,11 @@ class game:
             if players > player_page * 3 + 2:
                 self.surface.blit(font_player_number['1'], (20, 480 - font_offsets['1'] // 2))
                 self.surface.blit(font_player_number[str(third + 1)[1]], (65, 480 - font_offsets[str(third + 1)[1]] // 2))
-        pygame.draw.rect(self.surface, color_board_outline, (10, 10, 1060, 600), 4)
+        pygame.draw.rect(self.surface, color_board_outline, (10, 10, 1060, 645), 4)
 
         draw_text_box(str(score_limit), font_info, (1080, 615), self.surface)
         draw_text_box(game_name, font_info, (1080, 670), self.surface)
-        blit('Score limit:', font_40, (972, 620))
+        blit('Score limit:', font_40, (972, 620), False, (255, 255, 255))
         blit('Game name:', font_40, (970, 675))
 
         # draw the log
@@ -520,14 +542,15 @@ class game:
             pygame.draw.rect(self.surface, color_log_outline, (1095 + 10*(len(str(i + 1 + log_cursor)) - 1), 55 + 50*i, 177 - 10*(len(str(i + 1 + log_cursor)) - 1), 45), 3, 8)
             blit(log[i + log_cursor], font_data, (1100 + 10*(len(str(i + 1 + log_cursor)) - 1), 58 + 50*i), False, (255, 255, 255))
         
-        if pygame.key.get_pressed()[pygame.K_DOWN]:
-            log_cursor += 1
-            if log_cursor >= len(log):
-                log_cursor = len(log) - 1
-        if pygame.key.get_pressed()[pygame.K_UP]:
-            log_cursor -= 1
-            if log_cursor < 0:
-                log_cursor = 0
+        if log:
+            if pygame.key.get_pressed()[pygame.K_DOWN]:
+                log_cursor += 1
+                if log_cursor >= len(log):
+                    log_cursor = len(log) - 1
+            if pygame.key.get_pressed()[pygame.K_UP]:
+                log_cursor -= 1
+                if log_cursor < 0:
+                    log_cursor = 0
         if pygame.key.get_pressed()[pygame.K_LEFT] and not was_pressed:
             player_page -= 1
             if player_page < 0:
@@ -538,14 +561,206 @@ class game:
             if player_page > max_page:
                 player_page = 0
             was_pressed = True
-        blit('Enter the command here:', font_40, (10, 610))
 
     def process_commands(self):
-        # to do
+        # gather input
         global command
-        temp = self.command_line.draw(fancy_format=False)
-        if not temp is False:
-            command = temp
+        global is_updating # we're not gonna use the text_field's draw() method because we want to see the user typing
+        global message # the message above the command prompt
+        process = False
+        valid = True
+        if not command:
+            message = '§fEnter the command here:'
+        if pygame.event.get(pygame.MOUSEBUTTONDOWN):
+            if is_updating:
+                is_updating = False
+            elif self.command_line._is_over():
+                is_updating = not is_updating
+        pygame.draw.rect(self.surface, (240, 240, 240), (10, 660, 950, 50))
+        if is_updating:
+            command = self.command_line._update()
+            if command and command[-1] == '§':
+                command = command[:-1] # invalid character check
+                self.command_line.text = self.command_line.text[:-1]
+            if self.command_line.enter:
+                process = True
+        else:
+            fancy_blit.fancy_blit(message, font_msg, (15, 615), self.surface, background_color=color_board_bg)
+            fancy_blit.fancy_blit(command, font_cmd, (15, 660), self.surface)
+            pygame.draw.rect(self.surface, (0, 0, 0), (10, 660, 950, 50), int(is_updating) * 2 + 2) # i don't want to set the outline width separately
+            return
+
+        args = command.split(' ')
+        visible = args.copy()
+
+        # colors
+        if not args[0] in ['score', 'double', 'rename', 'menu', 'file', 'help']: # check if the command exists
+            message = "§fscore|double|rename|menu|file|help §f..."
+            visible[0] = '§4' + visible[0]
+            valid = False
+        else:
+            message = self.cmd_desc[args[0]]
+        
+        if len(args) > 1: # second argument (word)
+            if args[0] == 'score':
+                if not args[1] in ['add', 'remove', 'set', 'limit']:
+                    visible[1] = '§4' + visible[1]
+                    valid = False
+                else:
+                    message = self.set_desc[args[1]]
+            if args[0] == 'double': # full command
+                if args[1] != '0' and args[1] != '6':
+                    visible[1] = '§4' + visible[1]
+                    valid = False
+                else:
+                    visible[1] = '§3' + visible[1]
+                    try:
+                        int(args[2]) # checks the length of it too
+                    except:
+                        if len(args) > 2:
+                            visible[2] = '§4' + visible[2]
+                        valid = False
+                    else:
+                        if 0 < int(args[2]) <= players:
+                            visible[2] = '§6' + visible[2] + '§7'
+                        else:
+                            visible[2] = '§4' + visible[2]
+                            valid = False
+            if args[0] == 'rename': # full command
+                try:
+                    int(args[1])
+                except:
+                    success = False
+                else:
+                    success = 0 < int(args[1]) <= players
+                if success or args[1] == 'game':
+                    visible[1] = '§3' + visible[1]
+                    if len(args) > 2:
+                        visible[2] = '§6' + visible[2] + '§7'
+                else:
+                    visible[1] = '§4' + visible[1]
+                    valid = False
+            if args[0] == 'menu': # full command
+                visible[1] = '§c' + visible[1]
+            if args[0] == 'file': # full command
+                if args[1] in ['set', 'reload', 'save', 'open']:
+                    message = self.file_desc[args[1]]
+                    if args[1] in ['reload', 'save']:
+                        visible[1] = '§3' + visible[1] + '§7'
+                    else:
+                        visible[1] = '§0' + visible[1]
+                        if len(args) > 2:
+                            visible[2] = '§3' + visible[2] + '§7'
+                else:
+                    visible[1] = '§4' + visible[1]
+                    valid = False
+            if args[0] == 'help': # full command
+                visible[1] = '§7' + visible[1] # this argument is ignored
+
+        if len(args) > 2: # third argument, basically only the score command
+            if args[0] == 'score':
+                if args[1] == 'add' or args[1] == 'remove':
+                    try:
+                        int(args[2])
+                    except:
+                        success = False
+                    else:
+                        success = 0 < int(args[2]) <= players
+                    if success or args[2] == 'all':
+                        if args[2] == 'all':
+                            message = self.set_desc[f'{args[1]} all']
+                        else:
+                            message = self.set_desc[args[1]]
+                        visible[2] = '§3' + visible[2]
+                        if len(args) == 4 or len(args) == 3 + players:
+                            for i in range(len(args) - 3):
+                                try: # i know it's a bit messy, but no one's gonna read this part anyway =)
+                                    float(args[i + 3])
+                                except:
+                                    success = False
+                                else:
+                                    success = True
+                                if success:
+                                    if not i:
+                                        visible[i+3] = '§6' + visible[i+3]
+                                    else:
+                                        visible[i+3] = '§a' + visible[i+3] + '§7'
+                                else:
+                                    visible[i+3] = '§4' + visible[i+3]
+                                    valid = False
+                        else:
+                            if len(args) > 3:
+                                visible[3] = '§4' + visible[3]
+                                valid = False
+                    else:
+                        visible[2] = '§4' + visible[2]
+                        valid = False
+                if args[1] == 'set':
+                    try:
+                        int(args[2])
+                    except:
+                        success = False
+                    else:
+                        success = 0 < int(args[2]) <= players
+                    if success:
+                        visible[2] = '§3' + visible[2]
+                        if len(args) > 3:
+                            try:
+                                float(args[3])
+                            except:
+                                success = False
+                            else:
+                                success = True
+                            if success:
+                                visible[3] = '§6' + visible[3] + '§7'
+                            else:
+                                visible[3] = '§4' + visible[3]
+                                valid = False
+                    else:
+                        visible[2] = '§4' + visible[2]
+                        valid = False
+                if args[1] == 'limit':
+                    if args[2] == 'set':
+                        message = '§fscore limit set §b<value: float>'
+                        if len(args) > 3:
+                            try:
+                                float(args[3])
+                            except:
+                                success = False
+                            else:
+                                success = True
+                            if success:
+                                visible[3] = '§3' + visible[3] + '§7'
+                            else:
+                                visible[3] = '§4' + visible[3]
+                                valid = False
+                    elif args[2] == 'mode':
+                        message = '§fscore limit mode §b<least|most>'
+                        if len(args) > 3:
+                            if args[3] == 'least' or args[3] == 'most':
+                                visible[3] = '§3' + visible[3] + '§7'
+                            else:
+                                visible[3] = '§4' + visible[3]
+                                valid = False
+                    else:
+                        visible[2] = '§4' + visible[2]
+                        valid = False
+
+        # draw the text
+        show = ''
+        for i in visible:
+            show = show + i + ' '
+        fancy_blit.fancy_blit(message, font_msg, (15, 615), self.surface, background_color=color_board_bg)
+        fancy_blit.fancy_blit(show, font_cmd, (15, 660), self.surface)
+        pygame.draw.rect(self.surface, (0, 0, 0), (10, 660, 950, 50), int(is_updating) * 2 + 2) # i don't want to set the outline width separately
+
+        # process
+        if process and valid:
+            command = ''
+            self.command_line.text = ''
+            print(f'got command: {args}')
+            is_updating = False
+            return
         
 ui_menu = menu()
 ui_settings = settings()

@@ -26,9 +26,10 @@ class text_field:
         self.type = type_
 
         self.was_clicked = False
+        self.enter = False # if the typing was stopped by pressing Enter
 
     def _is_over(self, bkp_pos = None) -> bool:
-        # returns true if mouse is over
+        '''Returns true if mouse is over'''
         if bkp_pos == None:
             self.pos = pygame.mouse.get_pos()
         else:
@@ -40,52 +41,58 @@ class text_field:
 
     def _update(self) -> str:
         '''Update the contents of the box and return the new value'''
+        self.enter = False
         self.was_clicked = pygame.mouse.get_pressed()[0]
         if self.type == 'int':
             for event in pygame.event.get():
                 if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_RETURN:
+                    if event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER:
                         self.was_clicked = True
+                        self.enter = True
                         break
-                    if event.key == pygame.K_BACKSPACE:
+                    elif event.key == pygame.K_BACKSPACE:
                         try:
                             self.text = str(self.text)[:-1]
                         except:
                             pass
-                    try:
-                        lol = int(event.unicode + '1')
-                    except ValueError:
-                        lol = 5
                     else:
-                        self.text = str(self.text) + event.unicode
+                        try:
+                            lol = int(event.unicode + '1')
+                        except ValueError:
+                            lol = 5
+                        else:
+                            self.text = str(self.text) + event.unicode
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     self.was_clicked = True
         elif self.type == 'float':
             for event in pygame.event.get():
                 if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_RETURN:
+                    if event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER:
                         self.was_clicked = True
+                        self.enter = True
                         break
-                    if event.key == pygame.K_BACKSPACE:
+                    elif event.key == pygame.K_BACKSPACE:
                         try:
                             self.text = str(self.text)[:-1]
                         except:
                             pass
-                    try:
-                        lol = float('1' + event.unicode)
-                    except ValueError:
-                        lol = 5
                     else:
-                        self.text = str(self.text) + event.unicode
+                        try:
+                            lol = float('1' + event.unicode)
+                        except ValueError:
+                            lol = 5
+                        else:
+                            self.text = str(self.text) + event.unicode
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     self.was_clicked = True
         else:
             for event in pygame.event.get():
                 if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_RETURN:
+                    if event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER:
                         self.was_clicked = True
+                        self.enter = True
                         break
-                    if event.key == pygame.K_BACKSPACE:
+                    elif event.key == pygame.K_BACKSPACE:
                         try:
                             self.text = str(self.text)[:-1]
                         except:
@@ -94,6 +101,7 @@ class text_field:
                         self.text += event.unicode
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     self.was_clicked = True
+        return self.text
 
     def draw(self, update=True, text_color=(0, 0, 0), fancy_format=True) -> str:
         '''Usage: 'temp = field_name.draw(...); if not temp is False: target = temp' where target is the string you want to get as user input'''
@@ -112,7 +120,7 @@ class text_field:
             text = self.font.render(str(self.text), 4, text_color, self.field_color)
             self.surface.blit(text, (self.x + 5, self.y))
         else:
-            fancy_blit.fancy_blit(self.text, self.font, (self.x, self.y), self.surface, text_color, self.field_color)
+            fancy_blit.fancy_blit(self.text, self.font, (self.x + 5, self.y), self.surface, text_color, self.field_color)
 
         pygame.draw.rect(self.surface, outline_color, (self.x, self.y, self.width, self.height), outline_width)
 

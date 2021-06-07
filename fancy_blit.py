@@ -19,31 +19,31 @@ color_index = {'0': (0, 0, 0),
 
 def fancy_blit(text, font, pos, surface, default_color=(0, 0, 0), background_color=(240, 240, 240)) -> str:
     '''Draws the text and returns it in a normal way (without technical symbols)'''
-    divided_text = text.split('&')
+    divided_text = text.split('§')
     rendered_parts = []
     counter = 0
     for i in divided_text:
         try:
             if i == '' and not len(text):
                 continue
-            if not i[0] in '0123456789abcdef' or (text[0] != '&' and not counter):
-                raise SyntaxError(f'invalid format code: &{i[0]}')
+            if not i[0] in '0123456789abcdef' or (text[0] != '§' and not counter):
+                raise SyntaxError(f'invalid format code: §{i[0]}')
             rendered_parts.append(font.render(i[1:], 4, color_index[i[0]], background_color))
         except:
             if counter:
-                rendered_parts.append(font.render('&' + i, 4, default_color, background_color))
+                rendered_parts.append(font.render('§' + i, 4, default_color, background_color))
             else:
                 rendered_parts.append(font.render(i, 4, default_color, background_color))
         counter += 1
     offset = 0
     for i in rendered_parts:
-        surface.blit(i, (pos[0] + 5 + offset, pos[1]))
+        surface.blit(i, (pos[0] + offset, pos[1]))
         offset += i.get_width()
-    normal_text = ''
+    normal_text = '' # returning normal text is not tested
     if text:
         counter = 0
         for i in divided_text:
-            if counter or text[0] == '&':
+            if counter or text[0] == '§':
                 normal_text += i[1:]
             else:
                 normal_text += i
