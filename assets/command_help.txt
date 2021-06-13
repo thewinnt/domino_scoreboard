@@ -5,12 +5,12 @@ text - write just like that
 a|b - choose either a or b
 
 Commands:
-score add <player: int> <amount: float> - add points to player
-score remove <player: int> <amount: float> - take points from player
-score set <player: int> <amount: float> - set the player's score
-score add all <amount: float> [... <amount: float>] - increase each player's score all at once
-score remove all <amount: float> [... <amount: float>] - decrease each player's score all at once
-score limit set <value: float> - set the score limit
+score add <player: int> <amount: int> - add points to player
+score add all <amount: int> [... <amount: int>] - increase each player's score all at once
+score remove <player: int> <amount: int> - take points from player
+score remove all <amount: int> [... <amount: int>] - decrease each player's score all at once
+score set <player: int> <amount: int> - set the player's score
+score limit set <value: int> - set the score limit
 score limit mode <least|most> - victory for having the lowest score or the highest
 double <0|6> <player: int> - player ended with double
 rename <player: int> <name: str> - change player's name
@@ -19,5 +19,8 @@ menu [no_save] - save if no_save is not present and quit to main menu
 file set [file_path: str] - change the save file
 file reload - reload the current save file
 file save - save the game
-file open [file_path: str] - open a save file
+log add <entry: str> - add something to the log
+log remove <from: int> [to: int] - remove entries from the loggoal <player: int> fixed <value: int> - set the player's goal to <value> victories
+goal <player: int> relative <player: int|most|least> <operation: +|-|/|*> <value: float> - set the player's goal
+victory <player: int> <value: int> - set the player's victory count
 help - get help with commands

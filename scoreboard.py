@@ -97,36 +97,72 @@ font_player_number = {'-': pygame.transform.rotozoom(font_score['-'], 0, 0.5),
                       '9': pygame.transform.rotozoom(font_score['9'], 0, 0.5)}
 
 # predefine variables to use in definitions safely
-game_name = '' ## there used to be '<insert a meme here>' here  ## i have not achieved comedy
-players = 2 # i can not put anything here, because in the end, it does matter and it doesn't get overwritten as soon as you start the game
-max_page = 0
-scores = [0, 0]
-victories = [0, 0]
-goals = [2147483647, 2147483647]
-names = ['Player 1', 'Player 2']
-score_limit = 125
-log = []
-field_colors = [0, 0]
+def predefine_variables():
+    global game_name
+    global players
+    global max_page
+    global scores
+    global victories
+    global goals
+    global names
+    global score_limit
+    global log
+    global field_colors
+    global blink_time
+    global voice
+    global show_victories
+    global show_progress
+    global inverted_victory_mode
+    global is_game_running
+    global error_messages
+    global game_conf_file
+    global player_page
+    global command
+    global log_cursor
+    global was_pressed
+    global is_updating
+    global message
+    global command_help
+    game_name = '' ## there used to be '<insert a meme here>' here  ## i have not achieved comedy
+    players = 2 # i can not put anything here, because in the end, it does matter and it doesn't get overwritten as soon as you start the game
+    max_page = 0
+    scores = [0, 0]
+    victories = [0, 0]
+    goals = [2147483647, 2147483647]
+    names = ['Player', 'Player']
+    score_limit = 125
+    log = []
+    field_colors = [0, 0]
 
-blink_time = 10
-voice = True
-show_victories = True
-progress = True
+    blink_time = 10
+    voice = True
+    show_victories = True
+    show_progress = True
+    inverted_victory_mode = False # if true, the player with the highest score wins
 
-is_game_running = False
+    is_game_running = False
 
-error_messages = []
+    error_messages = []
 
-game_conf_file = ''
-player_page = 0
+    game_conf_file = ''
+    player_page = 0
 
-command = ''
-log_cursor = 0
+    command = ''
+    log_cursor = 0
 
-was_pressed = False
-is_updating = False
+    was_pressed = False
+    is_updating = False
 
-message = 'Enter the command here:'
+    message = 'Enter the command here:'
+
+    try:
+        with open('assets/command_help.txt', 'r') as help_file:
+            command_help = help_file.read()
+    except:
+        command_help = 'Help file missing'
+        print('File error: missing file - assets/command_help.txt; help command will not work')
+
+predefine_variables()
 
 # utility functions
 def draw_rect(x1, y1, x2, y2, fill_color = (0, 204, 204), outline=3, outline_color = (0, 0, 0), surface=pygame.display.get_surface()):
@@ -191,16 +227,22 @@ class menu:
         global names
         global scores
         global players
-        global progress
+        global max_page
         global victories
         global game_name
         global current_ui
         global score_limit
+        global field_colors
+        global show_progress
+        global show_victories
+        global game_conf_file
+        global is_game_running
+        global inverted_victory_mode
         self.surface.fill(color_bg)
         if draw_button(self.btn_import, 72, self.surface):
-            filename = filedialog.askopenfilename(title='Load game', filetypes=[('Game file', '*.json'), ('All files', '*.*')])
+            game_conf_file = filedialog.askopenfilename(title='Load game', filetypes=[('Game file', '*.json'), ('All files', '*.*')])
             try:
-                with open(filename, 'r', -1, 'utf-8') as file:
+                with open(game_conf_file, 'r', -1, 'utf-8') as file:
                     game_config = json.load(file)
             except FileNotFoundError:
                 return
@@ -217,16 +259,23 @@ class menu:
                 names = game_config['names']
                 scores = game_config['scores']
                 players = game_config['players']
-                progress = game_config['progress']
                 victories = game_config['victories']
                 score_limit = game_config['score_limit']
+                inverted_victory_mode = game_config['limit_mode']
             except KeyError:
                 print('File error: some of the critical values were not found, cannot proceed')
                 return
+            if players % 3:
+                max_page = players // 3
+            else:
+                max_page = players // 3 - 1
+            field_colors = [0] * players
+            is_game_running = True
             current_ui = 'game'
         if draw_button(self.btn_settings, 72, self.surface):
             current_ui = 'settings'
         if draw_button(self.btn_new_file, 72, self.surface):
+            predefine_variables() # we don't want to reload the previous game
             current_ui = 'setup'
         blit(game_version, font_28, (10, 690))
 
@@ -240,8 +289,10 @@ class settings:
         self.show_goal_progress = switch.switch(1180, 200, self.surface)
         self.blink_time = text_field.text_field(1180, 250, 90, 40, blink_time, font_50, self.surface, 'int')
         # game settings
-        self.game_name = text_field.text_field(1180, 100, 90, 40, game_name, font_50, game_name, self.surface)
-        self.score_lim = text_field.text_field(1180, 150, 90, 40, score_limit, font_50, score_limit, self.surface, 'float')
+        self.game_name = text_field.text_field(1180, 100, 90, 40, game_name, font_50, self.surface)
+        self.score_lim = text_field.text_field(1180, 150, 90, 40, score_limit, font_50, self.surface, 'int')
+        self.score_mode = switch.switch(1180, 200, self.surface)
+        self.filename = button.button(color_board_outline, 1180, 250, 90, 40, 'Change')
         self.goto_player_name = button.button(color_board_outline, 10, 440, 90, 40, 'Player names')
         # player names
         self.player_names = []
@@ -256,11 +307,14 @@ class settings:
         global current_ui
         global voice
         global show_victories
-        global progress
+        global show_progress
         global blink_time
         self.surface.fill(color_bg)
         if self.go_back.smart_draw(self.surface):
-            current_ui = 'menu'
+            if current_ui == 'settings':
+                current_ui = 'menu'
+            else:
+                current_ui = 'game'
             global_config.save()
             if is_game_running and game_conf_file:
                 with open(game_conf_file, 'w', -1, 'utf-8') as file:
@@ -277,8 +331,8 @@ class settings:
             show_victories = not show_victories
             global_config.set('victories', show_victories)
         if self.show_goal_progress.smart_draw(global_config.get('progress')):
-            progress = not progress
-            global_config.set('progress', progress)
+            show_progress = not show_progress
+            global_config.set('progress', show_progress)
         temp_blink_time = self.blink_time.draw()
         if not temp_blink_time is False:
             blink_time = temp_blink_time
@@ -290,11 +344,12 @@ class settings:
         global current_ui
         global game_name
         global score_limit
-        blit('Game settings', font_40, (20, 280), (100, 100, 100))
+        blit('Game settings', font_40, (20, 280), False, (100, 100, 100))
         blit('Game name', font_72, (20, 310))
         blit('Score limit', font_72, (20, 360))
         if draw_button(self.goto_player_name, 72, self.surface):
-            current_ui = 'player_edit'
+            if current_ui == 'pause':
+                current_ui = 'player_edit'
         temp = self.game_name.draw()
         if not temp is False:
             game_name = temp
@@ -317,8 +372,8 @@ class settings:
             else:
                 current_ui = 'setup'
             if game_conf_file:
-                with open(game_conf_file, 'w', -1, 'utf-8') as file:
-                    file.write(json.dumps(game_config, indent=4, ensure_ascii=False))
+                with open(game_conf_file, 'w', -1) as file:
+                    file.write(json.dumps(game_config, indent=4, ensure_ascii=True))
 
 
 class game:
@@ -326,7 +381,7 @@ class game:
         self.surface = window
         self.game_name = text_field.text_field(800, 90, 460, 65, game_name, font_72, self.surface)
         self.player_count = text_field.text_field(800, 160, 460, 65, players, font_72, self.surface, 'int')
-        self.score_lim = text_field.text_field(800, 230, 460, 65, score_limit, font_72, self.surface, 'float')
+        self.score_lim = text_field.text_field(800, 230, 460, 65, score_limit, font_72, self.surface, 'int')
         self.set_player_names = button.button(color_board_outline, 20, 300, 400, 65, 'Set player names')
         self.start = button.button(color_board_outline, 950, 630, 310, 75, 'Save and start')
         self.go_menu = hyperlink.hyperlink((0, 0, 0), 10, 0, '< Main Menu')
@@ -345,11 +400,11 @@ class game:
                          'file': '§ffile <set|reload|save|open> §b...',
                          'help': '§fhelp'} # the descriptions of the commands
 
-        self.set_desc = {'add': '§fscore add §b<player: int|all> §6<amount: float>',
-                         'remove': '§fscore remove §b<player: int|all> §6<amount: float>',
-                         'set': '§fscore set §b<player: int> §6<amount: float>',
-                         'add all': '§fscore add §ball §6<amount: float> §a[<amount: float> for each player in order]',
-                         'remove all': '§fscore remove §ball §6<amount: float> §a[<amount: float> for each player in order]',
+        self.set_desc = {'add': '§fscore add §b<player: int|all> §6<amount: int>',
+                         'remove': '§fscore remove §b<player: int|all> §6<amount: int>',
+                         'set': '§fscore set §b<player: int> §6<amount: int>',
+                         'add all': '§fscore add §ball §6<amount: int> §a[<amount: int> for each player in order]',
+                         'remove all': '§fscore remove §ball §6<amount: int> §a[<amount: int> for each player in order]',
                          'limit': '§fscore limit <set|mode>'} # descriptions of the set subcommands
 
         self.file_desc = {'set': '§ffile set §b[path: str]',
@@ -372,6 +427,7 @@ class game:
         global game_config
         global max_page
         global log_cursor
+        global is_game_running
         self.surface.fill(color_bg)
         blit('New game', font_96, (640, 10), True)
         blit('Game name', font_72, (20, 80))
@@ -392,7 +448,7 @@ class game:
         temp = self.game_name.draw(fancy_format=False)
         if not temp is False:
             game_name = temp
-            game_config['name'] = temp
+            game_config['game_name'] = temp
         temp = self.player_count.draw()
         if not temp is False:
             players = temp
@@ -400,7 +456,7 @@ class game:
                 max_page = players // 3
             else:
                 max_page = players // 3 - 1
-            game_config['player_count'] = temp
+            game_config['players'] = temp
             try:
                 names[players-1]
                 game_config['names'][players-1]
@@ -426,17 +482,18 @@ class game:
             scores = [0] * players
             goals = [0] * players
             victories = [0] * players
+            is_game_running = True
             current_ui = 'game'
         if draw_button(self.start, 72, self.surface):
             if not error_messages:
                 game_conf_file = filedialog.asksaveasfilename(defaultextension = '.json', filetypes = [('JSON files', '*.json'), ('All files', '*.*')], title = 'Save game data')
                 try:
-                    with open(game_conf_file, 'w', -1, 'utf-8') as file:
+                    with open(game_conf_file, 'w') as file:
                         game_config['scores'] = scores
                         game_config['victories'] = victories
                         game_config['goals'] = goals
                         game_config['log'] = log
-                        file.write(json.dumps(game_config, indent=4, ensure_ascii=False))
+                        file.write(json.dumps(game_config, indent=4, ensure_ascii=True))
                 except:
                     draw_rect(410, 270, 870, 450)
                     draw_rect(410, 270, 870, 300, color_bg)
@@ -451,12 +508,18 @@ class game:
                         pygame.event.get()
                         pygame.display.update()
                         gametick.tick(max_fps)
+                field_colors = [0] * players
+                scores = [0] * players
+                goals = [0] * players
+                victories = [0] * players
+                is_game_running = True
                 current_ui = 'game'
 
     def draw_game(self):
         global player_page
         global log_cursor
         global was_pressed
+        global current_ui
         if not pygame.key.get_pressed()[pygame.K_LEFT] and not pygame.key.get_pressed()[pygame.K_RIGHT]:
             was_pressed = False
         # draw the stuff
@@ -561,12 +624,29 @@ class game:
             if player_page > max_page:
                 player_page = 0
             was_pressed = True
+        if pygame.key.get_pressed()[pygame.K_ESCAPE]:
+            current_ui = 'pause'
 
     def process_commands(self):
         # gather input
         global command
         global is_updating # we're not gonna use the text_field's draw() method because we want to see the user typing
         global message # the message above the command prompt
+        global scores
+        global victories
+        global names
+        global score_limit
+        global game_name
+        global log
+        global game_config
+        global inverted_victory_mode
+        global current_ui
+        global is_game_running
+        global game_conf_file
+        global players
+        global goals
+        global field_colors
+        global max_page
         process = False
         valid = True
         if not command:
@@ -608,7 +688,7 @@ class game:
                     valid = False
                 else:
                     message = self.set_desc[args[1]]
-            if args[0] == 'double': # full command
+            elif args[0] == 'double': # full command
                 if args[1] != '0' and args[1] != '6':
                     visible[1] = '§4' + visible[1]
                     valid = False
@@ -626,7 +706,7 @@ class game:
                         else:
                             visible[2] = '§4' + visible[2]
                             valid = False
-            if args[0] == 'rename': # full command
+            elif args[0] == 'rename': # full command
                 try:
                     int(args[1])
                 except:
@@ -640,9 +720,9 @@ class game:
                 else:
                     visible[1] = '§4' + visible[1]
                     valid = False
-            if args[0] == 'menu': # full command
+            elif args[0] == 'menu': # full command
                 visible[1] = '§c' + visible[1]
-            if args[0] == 'file': # full command
+            elif args[0] == 'file': # full command
                 if args[1] in ['set', 'reload', 'save', 'open']:
                     message = self.file_desc[args[1]]
                     if args[1] in ['reload', 'save']:
@@ -654,7 +734,7 @@ class game:
                 else:
                     visible[1] = '§4' + visible[1]
                     valid = False
-            if args[0] == 'help': # full command
+            elif args[0] == 'help': # full command
                 visible[1] = '§7' + visible[1] # this argument is ignored
 
         if len(args) > 2: # third argument, basically only the score command
@@ -675,7 +755,7 @@ class game:
                         if len(args) == 4 or len(args) == 3 + players:
                             for i in range(len(args) - 3):
                                 try: # i know it's a bit messy, but no one's gonna read this part anyway =)
-                                    float(args[i + 3])
+                                    int(args[i + 3])
                                 except:
                                     success = False
                                 else:
@@ -695,7 +775,7 @@ class game:
                     else:
                         visible[2] = '§4' + visible[2]
                         valid = False
-                if args[1] == 'set':
+                elif args[1] == 'set':
                     try:
                         int(args[2])
                     except:
@@ -706,7 +786,7 @@ class game:
                         visible[2] = '§3' + visible[2]
                         if len(args) > 3:
                             try:
-                                float(args[3])
+                                int(args[3])
                             except:
                                 success = False
                             else:
@@ -719,12 +799,12 @@ class game:
                     else:
                         visible[2] = '§4' + visible[2]
                         valid = False
-                if args[1] == 'limit':
+                elif args[1] == 'limit':
                     if args[2] == 'set':
-                        message = '§fscore limit set §b<value: float>'
+                        message = '§fscore limit set §b<value: int>'
                         if len(args) > 3:
                             try:
-                                float(args[3])
+                                int(args[3])
                             except:
                                 success = False
                             else:
@@ -756,9 +836,171 @@ class game:
 
         # process
         if process and valid:
+            print(f'[DEBUG] got command: {args}')
+            # score command
+            if args[0] == 'score': ## SCORE COMMAND
+                if len(args) > 3: # there are always at least 4 arguments in a score command
+                    if args[1] == 'add': ## ADD ARGUMENT
+                        if args[2] == 'all':
+                            try:
+                                args[4]
+                            except:
+                                for i in range(players):
+                                    scores[i] += int(args[3]) # no smooth animation for now
+                                    log.append(f'P{i+1}+{int(args[3])}')
+                            else:
+                                for i in range(players):
+                                    scores[i] += int(args[i + 3])
+                                    log.append(f'P{i+1}+{int(args[i+3])}')
+                        else:
+                            scores[int(args[2]) - 1] += int(args[3])
+                            log.append(f'P{int(args[2])}+{int(args[3])}')
+                    elif args[1] == 'remove': ## REMOVE ARGUMENT
+                        if args[2] == 'all':
+                            try:
+                                args[4]
+                            except:
+                                for i in range(players):
+                                    scores[i] -= int(args[3])
+                                    log.append(f'P{i+1}-{int(args[3])}')
+                            else:
+                                for i in range(players):
+                                    scores[i] -= int(args[i + 3])
+                                    log.append(f'P{i+1}-{int(args[i+3])}')
+                        else:
+                            scores[int(args[2]) - 1] -= int(args[3])
+                            log.append(f'P{int(args[2])}-{int(args[3])}')
+                    elif args[1] == 'set': ## SET ARGUMENT
+                        scores[int(args[2]) - 1] = int(args[3]) # won't be smooth
+                        log.append(f'P{int(args[2])}={int(args[3])}')
+                    elif args[1] == 'limit': ## LIMIT ARGUMENT
+                        if args[2] == 'set':
+                            score_limit = int(args[3])
+                            log.append(f'SL={int(args[3])}')
+                        elif args[2] == 'mode':
+                            if args[3] == 'least':
+                                inverted_victory_mode = False
+                                log.append('LM=LEAST')
+                            else:
+                                inverted_victory_mode = True
+                                log.append('LM=MOST')
+                else:
+                    print(f'Incomplete command: {command}')
+            elif args[0] == 'double': ## DOUBLE COMMAND
+                if len(args) > 2:
+                    if args[1] == '0':
+                        log.append(f'{int(args[2])}E0')
+                        victories[int(args[2]) - 1] += 1
+                        for i in range(blink_time):
+                            field_colors[int(args[2]) - 1] = 2
+                            self.draw_game()
+                            pygame.display.update()
+                            sleep(0.5)
+                            field_colors[int(args[2]) - 1] = 0
+                            self.draw_game()
+                            pygame.display.update()
+                            sleep(0.5)
+                            pygame.event.get()
+                    elif args[1] == '6':
+                        log.append(f'{int(args[2])}E6')
+                        for i in range(players):
+                            if i != int(args[2]) - 1:
+                                scores[i] += 50
+                        for i in range(blink_time):
+                            for j in range(players):
+                                if int(args[2]) - 1 != j:
+                                    field_colors[j] = 1
+                            self.draw_game()
+                            pygame.display.update()
+                            sleep(0.5)
+                            for i in range(players):
+                                field_colors[i] = 0
+                            self.draw_game()
+                            pygame.display.update()
+                            sleep(0.5)
+                            pygame.event.get()
+                else:
+                    print(f'Incomplete command: {command}')
+            elif args[0] == 'rename':
+                try:
+                    if args[1] == 'game':
+                        game_name = args[2]
+                        log.append(f'GN={args[2]}')
+                    else:
+                        names[int(args[1]) - 1] = args[2]
+                        log.append(f'P{int(args[1])}N={args[2]}')
+                except:
+                    print(f'Incomplete command: {command}')
+            elif args[0] == 'menu':
+                if game_conf_file and not (len(args) > 1 and args[1]): # if there's a save file and no_save wasn't specified:
+                    game_config['log'] = log
+                    game_config['goals'] = goals
+                    game_config['names'] = names
+                    game_config['scores'] = scores
+                    game_config['players'] = players
+                    game_config['victories'] = victories
+                    game_config['game_name'] = game_name
+                    game_config['score_limit'] = score_limit
+                    game_config['limit_mode'] = inverted_victory_mode
+                    with open(game_conf_file, 'w') as config_file:
+                        config_file.write(json.dumps(game_config, indent=4, ensure_ascii=True))
+                is_game_running = False
+                current_ui = 'menu'
+            elif args[0] == 'file':
+                if len(args) > 1:
+                    if args[1] == 'set':
+                        if len(args) > 2:
+                            game_conf_file = args[2]
+                        else:
+                            temp = filedialog.asksaveasfilename(defaultextension = '.json', filetypes = [('JSON files', '*.json'), ('All files', '*.*')], title = 'Save game data')
+                            if temp:
+                                game_conf_file = temp
+                    if args[1] == 'save':
+                        game_config['log'] = log
+                        game_config['goals'] = goals
+                        game_config['names'] = names
+                        game_config['scores'] = scores
+                        game_config['players'] = players
+                        game_config['victories'] = victories
+                        game_config['game_name'] = game_name
+                        game_config['score_limit'] = score_limit
+                        game_config['limit_mode'] = inverted_victory_mode
+                        with open(game_conf_file, 'w') as config_file:
+                            config_file.write(json.dumps(game_config, indent=4, ensure_ascii=True))
+                    if args[1] == 'reload':
+                        try:
+                            with open(game_conf_file, 'r', -1, 'utf-8') as file:
+                                game_config = json.load(file)
+                        except FileNotFoundError:
+                            return
+                        try:
+                            game_name = game_config['game_name']
+                        except KeyError:
+                            game_name = '<error>'
+                        try:
+                            log = game_config['log']
+                        except KeyError:
+                            log = []
+                        try:
+                            goals = game_config['goals']
+                            names = game_config['names']
+                            scores = game_config['scores']
+                            players = game_config['players']
+                            victories = game_config['victories']
+                            score_limit = game_config['score_limit']
+                            inverted_victory_mode = game_config['limit_mode']
+                        except KeyError:
+                            print('File error: some of the critical values were not found, cannot proceed')
+                            return
+                        if players % 3:
+                            max_page = players // 3
+                        else:
+                            max_page = players // 3 - 1
+                        field_colors = [0] * players
+            elif args[0] == 'help':
+                print(command_help)
             command = ''
             self.command_line.text = ''
-            print(f'got command: {args}')
             is_updating = False
             return
         
@@ -772,7 +1014,7 @@ while True:
         exit(0)
     if current_ui == "menu":
         ui_menu.draw()
-    elif current_ui == 'settings':
+    elif current_ui == 'settings' or current_ui == 'pause':
         ui_settings.draw_global()
     elif current_ui == 'player_edit' or current_ui == 'player_setup':
         ui_settings.draw_player_list()
