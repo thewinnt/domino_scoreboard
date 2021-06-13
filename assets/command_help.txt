@@ -20,7 +20,8 @@ file set [file_path: str] - change the save file
 file reload - reload the current save file
 file save - save the game
 log add <entry: str> - add something to the log
-log remove <from: int> [to: int] - remove entries from the loggoal <player: int> fixed <value: int> - set the player's goal to <value> victories
-goal <player: int> relative <player: int|most|least> <operation: +|-|/|*> <value: float> - set the player's goal
+log remove <from: int> [to: int] - remove entries from the log
+goal <player: int> fixed <value: int> - set the player's goal to <value> victories
+goal <player: int> relative <player: int|most|least> [<operation: +|-|/|*> <value: float>] - set the player's goal
 victory <player: int> <value: int> - set the player's victory count
 help - get help with commands
