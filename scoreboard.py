@@ -22,8 +22,8 @@ game_events = event_handler.EventHandler()
 icon = pygame.image.load("assets/window.png")
 pygame.display.set_icon(icon)
 window = pygame.display.set_mode((1280, 720))
-pygame.display.set_caption("Dominoes scoreboard (v. 1.0 pre-release 1)")
-game_version = "v. 1.0-pre1"
+pygame.display.set_caption("Dominoes scoreboard (v. 1.0 pre-release 2)")
+game_version = "v. 1.0-pre2"
 
 font_28 = pygame.font.Font('assets/denhome.otf', 28)
 font_40 = pygame.font.Font('assets/denhome.otf', 40)
@@ -228,6 +228,8 @@ class menu:
         self.btn_import = button.button(color_board_outline, 490, 335, 300, 75, 'Open file')
         self.btn_settings = button.button(color_board_outline, 490, 420, 300, 75, 'Settings')
 
+        self.btn_continue = button.button(color_board_outline, 490, 195, 300, 75, 'Continue')
+
     def draw(self):
         global log
         global goals
@@ -248,6 +250,16 @@ class menu:
         global is_game_running
         global inverted_victory_mode
         self.surface.fill(color_bg)
+        if is_game_running:
+            self.btn_new_file.y = 280
+            self.btn_import.y = 365
+            self.btn_settings.y = 450
+            if draw_button(self.btn_continue, 72, self.surface):
+                current_ui = 'game'
+        else:
+            self.btn_new_file.y = 250
+            self.btn_import.y = 335
+            self.btn_settings.y = 420
         if draw_button(self.btn_import, 72, self.surface):
             game_conf_file = filedialog.askopenfilename(title='Load game', filetypes=[('Game file', '*.json'), ('All files', '*.*')])
             try:
@@ -284,6 +296,9 @@ class menu:
             is_game_running = True
             current_ui = 'game'
         if draw_button(self.btn_settings, 72, self.surface):
+            ui_settings.blink_time.text = str(blink_time)
+            ui_settings.game_name.text = game_name
+            ui_settings.score_lim.text = str(score_limit)
             current_ui = 'settings'
         if draw_button(self.btn_new_file, 72, self.surface):
             predefine_variables() # we don't want to reload the previous game
@@ -305,6 +320,7 @@ class settings:
         self.score_mode = switch.switch(1180, 450, self.surface)
         self.filename = button.button(color_board_outline, 1180, 500, 90, 40, 'Change')
         self.goto_player_name = button.button(color_board_outline, 10, 550, 220, 65, 'Player names')
+        self.go_menu = button.button(color_board_outline, 10, 625, 220, 65, 'Main Menu')
         # player names
         self.player_names = []
         for i in range(18):
@@ -366,11 +382,13 @@ class settings:
         global score_limit
         global game_conf_file
         global inverted_victory_mode
+        global is_game_running
         blit('Game settings', font_40, (20, 290), False, (100, 100, 100))
         blit('Game name', font_72, (20, 320))
         blit('Score limit', font_72, (20, 370))
         blit('Victory for the player with highest score', font_72, (20, 420))
         blit('Save file', font_72, (20, 480))
+        blit('(game will be saved)', font_40, (240, 640), False, (85, 85, 85))
         filename = font_50.render(game_conf_file, 4, (0, 0, 0))
         self.surface.blit(filename, (1170 - filename.get_width(), 485))
         if draw_button(self.goto_player_name, 72, self.surface):
@@ -378,6 +396,20 @@ class settings:
                 self.player_names[i].text = names[i]
             if current_ui == 'pause':
                 current_ui = 'player_edit'
+        if draw_button(self.go_menu, 72):
+            if game_conf_file:
+                game_config['log'] = log
+                game_config['goals'] = goals
+                game_config['names'] = names
+                game_config['scores'] = scores
+                game_config['players'] = players
+                game_config['victories'] = victories
+                game_config['game_name'] = game_name
+                game_config['score_limit'] = score_limit
+                game_config['limit_mode'] = inverted_victory_mode
+                with open(game_conf_file, 'w') as config_file:
+                    config_file.write(json.dumps(game_config, indent=4, ensure_ascii=True))
+            current_ui = 'menu'
         temp = self.game_name.draw()
         if not temp is False:
             game_name = temp
@@ -431,7 +463,7 @@ class game:
                          'double': '§fdouble §b<0|6> §6<player: int>',
                          'rename': '§frename §b<player: int|game> §6<name: str>',
                          'menu': '§fmenu §c[no_save]',
-                         'file': '§ffile <set|reload|save|open> §b...',
+                         'file': '§ffile <set|reload|save> §b...',
                          'log': '§flog <add|remove> ...',
                          'goal': '§fgoal §b<player: int> §f<fixed|relative> ...',
                          'victory': '§fvictory §b<player: int> §6<value: int>',
@@ -446,8 +478,7 @@ class game:
 
         self.file_desc = {'set': '§ffile set §b[path: str]',
                           'reload': '§ffile §breload',
-                          'save': '§ffile §bsave',
-                          'open': '§ffile open §b[path: str]',}
+                          'save': '§ffile §bsave'}
 
     def draw_setup(self):
         global game_name
@@ -522,6 +553,15 @@ class game:
             visible_scores = [0] * players
             goals = ['0'] * players
             victories = [0] * players
+            game_config['log'] = log
+            game_config['goals'] = goals
+            game_config['names'] = names
+            game_config['scores'] = scores
+            game_config['players'] = players
+            game_config['victories'] = victories
+            game_config['game_name'] = game_name
+            game_config['score_limit'] = score_limit
+            game_config['limit_mode'] = inverted_victory_mode
             is_game_running = True
             current_ui = 'game'
         if draw_button(self.start, 72, self.surface):
@@ -529,10 +569,15 @@ class game:
                 game_conf_file = filedialog.asksaveasfilename(defaultextension = '.json', filetypes = [('JSON files', '*.json'), ('All files', '*.*')], title = 'Save game data')
                 try:
                     with open(game_conf_file, 'w') as file:
-                        game_config['scores'] = scores
-                        game_config['victories'] = victories
-                        game_config['goals'] = goals
                         game_config['log'] = log
+                        game_config['goals'] = goals
+                        game_config['names'] = names
+                        game_config['scores'] = scores
+                        game_config['players'] = players
+                        game_config['victories'] = victories
+                        game_config['game_name'] = game_name
+                        game_config['score_limit'] = score_limit
+                        game_config['limit_mode'] = inverted_victory_mode
                         file.write(json.dumps(game_config, indent=4, ensure_ascii=True))
                 except:
                     draw_rect(410, 270, 870, 450)
@@ -562,6 +607,7 @@ class game:
         global was_pressed
         global current_ui
         global visible_scores
+        global is_updating
         if not pygame.key.get_pressed()[pygame.K_LEFT] and not pygame.key.get_pressed()[pygame.K_RIGHT]:
             was_pressed = False
         # draw the stuff
@@ -701,6 +747,10 @@ class game:
                 player_page = 0
             was_pressed = True
         if pygame.key.get_pressed()[pygame.K_ESCAPE]:
+            ui_settings.blink_time.text = str(blink_time)
+            ui_settings.game_name.text = game_name
+            ui_settings.score_lim.text = str(score_limit)
+            is_updating = False
             current_ui = 'pause'
 
     def process_commands(self):
@@ -1117,7 +1167,7 @@ class game:
                         for i in range(players):
                             if i != int(args[2]) - 1:
                                 scores[i] += 50
-                                game_events.add_event(True, 'increase_player', max_fps, int(args[2]) - 1, 50 / max_fps)
+                                game_events.add_event(True, 'increase_player', max_fps, i, 50 / max_fps)
                                 game_events.add_event(True, 'blink', max_fps*blink_time - max_fps//2, i, 1)
                         game_events.add_event(False, 'score_change', max_fps)
                 else:
@@ -1152,7 +1202,6 @@ class game:
                     game_config['limit_mode'] = inverted_victory_mode
                     with open(game_conf_file, 'w') as config_file:
                         config_file.write(json.dumps(game_config, indent=4, ensure_ascii=True))
-                is_game_running = False
                 current_ui = 'menu'
             elif args[0] == 'file':
                 if len(args) > 1:

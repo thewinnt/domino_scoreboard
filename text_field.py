@@ -128,6 +128,8 @@ class text_field:
             self.was_clicked = False
             temp = self.active
             self.active = self._is_over()
+            if self.active and not temp:
+                pygame.event.get()
             if temp == self.active or self.active:
                 return False
             if not self.active:
