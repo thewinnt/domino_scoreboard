@@ -8,7 +8,7 @@ import config
 import hyperlink
 import text_field
 import fancy_blit
-from time import sleep
+import event_handler
 from tkinter import filedialog
 
 useless = tkinter.Tk()
@@ -16,8 +16,9 @@ useless.withdraw()
 
 pygame.init()
 
-max_fps = 30
+
 gametick = pygame.time.Clock()
+game_events = event_handler.EventHandler()
 
 icon = pygame.image.load("assets/window.png")
 pygame.display.set_icon(icon)
@@ -56,7 +57,8 @@ global_config.load('config_global.json')
 global_config.get('voice', True)
 global_config.get('victories', True)
 global_config.get('progress', True)
-global_config.get('blink_time', 10) # for each setting we need, check if it's there and if it's not, set it to default value
+global_config.get('blink_time', 5) # for each setting we need, check if it's there and if it's not, set it to default value
+global_config.get('max_fps', 60)
 
 game_config = {}
 
@@ -103,6 +105,7 @@ def predefine_variables():
     global players
     global max_page
     global scores
+    global visible_scores
     global victories
     global goals
     global names
@@ -114,6 +117,7 @@ def predefine_variables():
     global show_victories
     global show_progress
     global inverted_victory_mode
+    global max_fps
     global is_game_running
     global error_messages
     global game_conf_file
@@ -128,6 +132,7 @@ def predefine_variables():
     players = 2 # i can not put anything here, because in the end, it does matter and it doesn't get overwritten as soon as you start the game
     max_page = 0
     scores = [0, 0]
+    visible_scores = [0, 0]
     victories = [0, 0]
     goals = ['2147483647', '2147483647']
     names = ['Player', 'Player']
@@ -135,11 +140,13 @@ def predefine_variables():
     log = []
     field_colors = [0, 0]
 
-    blink_time = 10
-    voice = True
-    show_victories = True
-    show_progress = True
+    blink_time = global_config.get('blink_time')
+    voice = global_config.get('voice')
+    show_victories = global_config.get('victories')
+    show_progress = global_config.get('progress')
     inverted_victory_mode = False # if true, the player with the highest score wins
+
+    max_fps = global_config.get('max_fps')
 
     is_game_running = False
 
@@ -238,6 +245,7 @@ class menu:
         global show_progress
         global show_victories
         global game_conf_file
+        global visible_scores
         global is_game_running
         global inverted_victory_mode
         self.surface.fill(color_bg)
@@ -254,7 +262,7 @@ class menu:
                 game_name = '<error>'
             try:
                 log = game_config['log']
-                log_cursor = len(log) - 10
+                log_cursor = max(0, len(log) - 10)
             except KeyError:
                 log = []
             try:
@@ -273,6 +281,7 @@ class menu:
             else:
                 max_page = players // 3 - 1
             field_colors = [0] * players
+            visible_scores = scores.copy()
             is_game_running = True
             current_ui = 'game'
         if draw_button(self.btn_settings, 72, self.surface):
@@ -363,7 +372,7 @@ class settings:
         blit('Score limit', font_72, (20, 370))
         blit('Victory for the player with highest score', font_72, (20, 420))
         blit('Save file', font_72, (20, 480))
-        filename = font_60.render(game_conf_file, 4, (0, 0, 0))
+        filename = font_50.render(game_conf_file, 4, (0, 0, 0))
         self.surface.blit(filename, (1170 - filename.get_width(), 485))
         if draw_button(self.goto_player_name, 72, self.surface):
             for i in range(players):
@@ -511,6 +520,7 @@ class game:
         if draw_button(self.start_no_file, 72, self.surface) and not error_messages:
             field_colors = [0] * players
             scores = [0] * players
+            visible_scores = [0] * players
             goals = ['0'] * players
             victories = [0] * players
             is_game_running = True
@@ -541,6 +551,7 @@ class game:
                         gametick.tick(max_fps)
                 field_colors = [0] * players
                 scores = [0] * players
+                visible_scores = [0] * players
                 goals = ['0'] * players
                 victories = [0] * players
                 is_game_running = True
@@ -551,6 +562,7 @@ class game:
         global log_cursor
         global was_pressed
         global current_ui
+        global visible_scores
         if not pygame.key.get_pressed()[pygame.K_LEFT] and not pygame.key.get_pressed()[pygame.K_RIGHT]:
             was_pressed = False
         # draw the stuff
@@ -558,10 +570,10 @@ class game:
         first = player_page * 3
         second = player_page * 3 + 1
         third = player_page * 3 + 2
-        score_first = str(scores[first])
+        score_first = str(int(visible_scores[first]))
         try:
-            score_second = str(scores[second])
-            score_third = str(scores[third]) # these are the player score in text form
+            score_second = str(int(visible_scores[second]))
+            score_third = str(int(visible_scores[third])) # these are the player scores as text
         except:
             pass
         if show_progress:
@@ -582,16 +594,16 @@ class game:
                 pass
         else:
             if goals[first] != '0':
-                goal_first = str(eval(goals[first]))
+                goal_first = str(eval(goals[first]) - victories[first])
             else:
                 goal_first = '0'
             try:
                 if goals[second] != '0':
-                    goal_second = str(eval(goals[second]))
+                    goal_second = str(eval(goals[second]) - victories[second])
                 else:
                     goal_second = '0'
                 if goals[third] != '0':
-                    goal_third = str(eval(goals[third]))
+                    goal_third = str(eval(goals[third]) - victories[third])
                 else:
                     goal_third = '0'
             except:
@@ -1031,14 +1043,17 @@ class game:
                                 args[4]
                             except:
                                 for i in range(players):
-                                    scores[i] += int(args[3]) # no smooth animation for now
+                                    scores[i] += int(args[3])
+                                    game_events.add_event(True, 'increase_player', max_fps, i, int(args[3]) / max_fps)
                                     log.append(f'P{i+1}+{int(args[3])}')
                             else:
                                 for i in range(players):
                                     scores[i] += int(args[i + 3])
+                                    game_events.add_event(True, 'increase_player', max_fps, i, int(args[i + 3]) / max_fps)
                                     log.append(f'P{i+1}+{int(args[i+3])}')
                         else:
                             scores[int(args[2]) - 1] += int(args[3])
+                            game_events.add_event(True, 'increase_player', max_fps, int(args[2]) - 1, int(args[3]) / max_fps)
                             log.append(f'P{int(args[2])}+{int(args[3])}')
                     elif args[1] == 'remove': ## REMOVE ARGUMENT
                         if args[2] == 'all':
@@ -1047,13 +1062,16 @@ class game:
                             except:
                                 for i in range(players):
                                     scores[i] -= int(args[3])
+                                    game_events.add_event(True, 'increase_player', max_fps, i, -int(args[3]) / max_fps)
                                     log.append(f'P{i+1}-{int(args[3])}')
                             else:
                                 for i in range(players):
                                     scores[i] -= int(args[i + 3])
+                                    game_events.add_event(True, 'increase_player', max_fps, i, -int(args[i + 3]) / max_fps)
                                     log.append(f'P{i+1}-{int(args[i+3])}')
                         else:
                             scores[int(args[2]) - 1] -= int(args[3])
+                            game_events.add_event(True, 'increase_player', max_fps, int(args[2]) - 1, -int(args[3]) / max_fps)
                             log.append(f'P{int(args[2])}-{int(args[3])}')
                     elif args[1] == 'set': ## SET ARGUMENT
                         scores[int(args[2]) - 1] = int(args[3]) # won't be smooth
@@ -1076,48 +1094,31 @@ class game:
                     if args[1] == '0':
                         log.append(f'{int(args[2])}E0')
                         victories[int(args[2]) - 1] += 1
-                        for i in range(blink_time):
-                            field_colors[int(args[2]) - 1] = 2
-                            self.draw_game()
-                            pygame.display.update()
-                            sleep(0.5)
-                            field_colors[int(args[2]) - 1] = 0
-                            self.draw_game()
-                            pygame.display.update()
-                            sleep(0.5)
-                            pygame.event.get()
+                        game_events.add_event(True, 'blink', max_fps*blink_time - max_fps//2, int(args[2]) - 1, 2)
                     elif args[1] == '6':
                         log.append(f'{int(args[2])}E6')
                         for i in range(players):
                             if i != int(args[2]) - 1:
                                 scores[i] += 50
-                        for i in range(blink_time):
-                            for j in range(players):
-                                if int(args[2]) - 1 != j:
-                                    field_colors[j] = 1
-                            self.draw_game()
-                            pygame.display.update()
-                            sleep(0.5)
-                            for i in range(players):
-                                field_colors[i] = 0
-                            self.draw_game()
-                            pygame.display.update()
-                            sleep(0.5)
-                            pygame.event.get()
+                                game_events.add_event(True, 'blink', max_fps*blink_time - max_fps//2, i, 1)
                 else:
                     print(f'Incomplete command: {command}')
             elif args[0] == 'rename':
                 try:
                     if args[1] == 'game':
-                        game_name = args[2]
+                        game_name = command[12:]
                         log.append(f'GN={args[2]}')
                     else:
-                        names[int(args[1]) - 1] = args[2]
-                        log.append(f'P{int(args[1])}N={args[2]}')
+                        if players < 10:
+                            names[int(args[1]) - 1] = command[9:]
+                            log.append(f'P{int(args[1])}N={command[9:]}')
+                        else:
+                            names[int(args[1]) - 1] = command[10:]
+                            log.append(f'P{int(args[1])}N={command[10:]}')
                 except:
                     print(f'Incomplete command: {command}')
             elif args[0] == 'menu':
-                if game_conf_file and not (len(args) > 1 and args[1]): # if there's a save file and no_save wasn't specified:
+                if game_conf_file and len(command) < 6: # if there's a save file and no_save wasn't specified:
                     game_config['log'] = log
                     game_config['goals'] = goals
                     game_config['names'] = names
@@ -1135,7 +1136,7 @@ class game:
                 if len(args) > 1:
                     if args[1] == 'set':
                         if len(args) > 2:
-                            game_conf_file = args[2]
+                            game_conf_file = command[9:]
                         else:
                             temp = filedialog.asksaveasfilename(defaultextension = '.json', filetypes = [('JSON files', '*.json'), ('All files', '*.*')], title = 'Save game data')
                             if temp:
@@ -1242,6 +1243,18 @@ while True:
                 config_file.write(json.dumps(game_config, indent=4, ensure_ascii=True))
         pygame.quit()
         exit(0)
+    changing_score = False
+    for i in game_events.tick():
+        if i['name'] == 'increase_player': # arg1 is the player, arg2 is the score
+            visible_scores[i['arg1']] += i['arg2']
+            changing_score = True
+        if i['name'] == 'blink': # arg1 is the player, arg2 is the color
+            if not i['time_left'] % max_fps:
+                field_colors[i['arg1']] = i['arg2']
+            elif i['time_left'] % max_fps == max_fps // 2:
+                field_colors[i['arg1']] = 0
+    if not changing_score:
+        visible_scores = scores.copy()
     if current_ui == "menu":
         ui_menu.draw()
     elif current_ui == 'settings' or current_ui == 'pause':
