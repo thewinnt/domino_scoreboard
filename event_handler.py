@@ -29,7 +29,7 @@ class EventHandler:
         counter = 0
         for i in self.events:
             i['time_left'] -= 1
-            if i['type'] or not i['time_left']:
+            if i['time_left'] == 0 or i['type']:
                 to_process.append(i)
             if i['time_left'] == 0:
                 self.events.pop(counter)

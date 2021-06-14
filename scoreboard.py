@@ -16,15 +16,14 @@ useless.withdraw()
 
 pygame.init()
 
-
 gametick = pygame.time.Clock()
 game_events = event_handler.EventHandler()
 
 icon = pygame.image.load("assets/window.png")
 pygame.display.set_icon(icon)
 window = pygame.display.set_mode((1280, 720))
-pygame.display.set_caption("Dominoes scoreboard (v. 1.0 development version)")
-game_version = "v. 1.0 (work in progress)"
+pygame.display.set_caption("Dominoes scoreboard (v. 1.0 pre-release 1)")
+game_version = "v. 1.0-pre1"
 
 font_28 = pygame.font.Font('assets/denhome.otf', 28)
 font_40 = pygame.font.Font('assets/denhome.otf', 40)
@@ -594,16 +593,16 @@ class game:
                 pass
         else:
             if goals[first] != '0':
-                goal_first = str(eval(goals[first]) - victories[first])
+                goal_first = str(eval(goals[first]) - victories[first]) + ' left'
             else:
                 goal_first = '0'
             try:
                 if goals[second] != '0':
-                    goal_second = str(eval(goals[second]) - victories[second])
+                    goal_second = str(eval(goals[second]) - victories[second]) + ' left'
                 else:
                     goal_second = '0'
                 if goals[third] != '0':
-                    goal_third = str(eval(goals[third]) - victories[third])
+                    goal_third = str(eval(goals[third]) - victories[third]) + ' left'
                 else:
                     goal_third = '0'
             except:
@@ -733,6 +732,7 @@ class game:
             if is_updating:
                 is_updating = False
             elif self.command_line._is_over():
+                pygame.event.get()
                 is_updating = not is_updating
         pygame.draw.rect(self.surface, (240, 240, 240), (10, 660, 950, 50))
         if is_updating:
@@ -794,21 +794,21 @@ class game:
                 if success or args[1] == 'game':
                     visible[1] = '§3' + visible[1]
                     if len(args) > 2:
-                        visible[2] = '§6' + visible[2] + '§7'
+                        visible[2] = '§6' + visible[2]
                 else:
                     visible[1] = '§4' + visible[1]
                     valid = False
             elif args[0] == 'menu': # full command
                 visible[1] = '§c' + visible[1]
             elif args[0] == 'file': # full command
-                if args[1] in ['set', 'reload', 'save', 'open']:
+                if args[1] in ['set', 'reload', 'save']:
                     message = self.file_desc[args[1]]
                     if args[1] in ['reload', 'save']:
                         visible[1] = '§3' + visible[1] + '§7'
                     else:
                         visible[1] = '§0' + visible[1]
                         if len(args) > 2:
-                            visible[2] = '§3' + visible[2] + '§7'
+                            visible[2] = '§3' + visible[2]
                 else:
                     visible[1] = '§4' + visible[1]
                     valid = False
@@ -1046,15 +1046,20 @@ class game:
                                     scores[i] += int(args[3])
                                     game_events.add_event(True, 'increase_player', max_fps, i, int(args[3]) / max_fps)
                                     log.append(f'P{i+1}+{int(args[3])}')
+                                    log_cursor = max(0, len(log) - 10)
                             else:
                                 for i in range(players):
                                     scores[i] += int(args[i + 3])
                                     game_events.add_event(True, 'increase_player', max_fps, i, int(args[i + 3]) / max_fps)
                                     log.append(f'P{i+1}+{int(args[i+3])}')
+                                    log_cursor = max(0, len(log) - 10)
+                            game_events.add_event(False, 'score_change', max_fps)
                         else:
                             scores[int(args[2]) - 1] += int(args[3])
                             game_events.add_event(True, 'increase_player', max_fps, int(args[2]) - 1, int(args[3]) / max_fps)
+                            game_events.add_event(False, 'score_change', max_fps)
                             log.append(f'P{int(args[2])}+{int(args[3])}')
+                            log_cursor = max(0, len(log) - 10)
                     elif args[1] == 'remove': ## REMOVE ARGUMENT
                         if args[2] == 'all':
                             try:
@@ -1064,43 +1069,57 @@ class game:
                                     scores[i] -= int(args[3])
                                     game_events.add_event(True, 'increase_player', max_fps, i, -int(args[3]) / max_fps)
                                     log.append(f'P{i+1}-{int(args[3])}')
+                                    log_cursor = max(0, len(log) - 10)
                             else:
                                 for i in range(players):
                                     scores[i] -= int(args[i + 3])
                                     game_events.add_event(True, 'increase_player', max_fps, i, -int(args[i + 3]) / max_fps)
                                     log.append(f'P{i+1}-{int(args[i+3])}')
+                                    log_cursor = max(0, len(log) - 10)
+                            game_events.add_event(False, 'score_change', max_fps)
                         else:
                             scores[int(args[2]) - 1] -= int(args[3])
                             game_events.add_event(True, 'increase_player', max_fps, int(args[2]) - 1, -int(args[3]) / max_fps)
+                            game_events.add_event(False, 'score_change', max_fps)
                             log.append(f'P{int(args[2])}-{int(args[3])}')
+                            log_cursor = max(0, len(log) - 10)
                     elif args[1] == 'set': ## SET ARGUMENT
                         scores[int(args[2]) - 1] = int(args[3]) # won't be smooth
+                        game_events.add_event(False, 'score_change', max_fps)
                         log.append(f'P{int(args[2])}={int(args[3])}')
+                        log_cursor = max(0, len(log) - 10)
                     elif args[1] == 'limit': ## LIMIT ARGUMENT
                         if args[2] == 'set':
                             score_limit = int(args[3])
                             log.append(f'SL={int(args[3])}')
+                            log_cursor = max(0, len(log) - 10)
                         elif args[2] == 'mode':
                             if args[3] == 'least':
                                 inverted_victory_mode = False
                                 log.append('LM=LEAST')
+                                log_cursor = max(0, len(log) - 10)
                             else:
                                 inverted_victory_mode = True
                                 log.append('LM=MOST')
+                                log_cursor = max(0, len(log) - 10)
                 else:
                     print(f'Incomplete command: {command}')
             elif args[0] == 'double': ## DOUBLE COMMAND
                 if len(args) > 2:
                     if args[1] == '0':
                         log.append(f'{int(args[2])}E0')
+                        log_cursor = max(0, len(log) - 10)
                         victories[int(args[2]) - 1] += 1
                         game_events.add_event(True, 'blink', max_fps*blink_time - max_fps//2, int(args[2]) - 1, 2)
                     elif args[1] == '6':
                         log.append(f'{int(args[2])}E6')
+                        log_cursor = max(0, len(log) - 10)
                         for i in range(players):
                             if i != int(args[2]) - 1:
                                 scores[i] += 50
+                                game_events.add_event(True, 'increase_player', max_fps, int(args[2]) - 1, 50 / max_fps)
                                 game_events.add_event(True, 'blink', max_fps*blink_time - max_fps//2, i, 1)
+                        game_events.add_event(False, 'score_change', max_fps)
                 else:
                     print(f'Incomplete command: {command}')
             elif args[0] == 'rename':
@@ -1108,13 +1127,16 @@ class game:
                     if args[1] == 'game':
                         game_name = command[12:]
                         log.append(f'GN={args[2]}')
+                        log_cursor = max(0, len(log) - 10)
                     else:
                         if players < 10:
                             names[int(args[1]) - 1] = command[9:]
                             log.append(f'P{int(args[1])}N={command[9:]}')
+                            log_cursor = max(0, len(log) - 10)
                         else:
                             names[int(args[1]) - 1] = command[10:]
                             log.append(f'P{int(args[1])}N={command[10:]}')
+                            log_cursor = max(0, len(log) - 10)
                 except:
                     print(f'Incomplete command: {command}')
             elif args[0] == 'menu':
@@ -1189,7 +1211,7 @@ class game:
                 if len(args) > 2:
                     if args[1] == 'add':
                         log.append(command[8:])
-                        log_cursor = len(log) - 10
+                        log_cursor = max(0, len(log) - 10)
                     elif args[1] == 'remove':
                         if len(args) > 3:
                             del log[int(args[2]) - 1:int(args[3])]
@@ -1229,7 +1251,7 @@ ui_game = game()
 
 while True:
     if pygame.event.get(pygame.QUIT):
-        if is_game_running:
+        if is_game_running and game_conf_file:
             game_config['log'] = log
             game_config['goals'] = goals
             game_config['names'] = names
@@ -1250,9 +1272,31 @@ while True:
             changing_score = True
         if i['name'] == 'blink': # arg1 is the player, arg2 is the color
             if not i['time_left'] % max_fps:
-                field_colors[i['arg1']] = i['arg2']
-            elif i['time_left'] % max_fps == max_fps // 2:
                 field_colors[i['arg1']] = 0
+            elif i['time_left'] % max_fps == max_fps // 2:
+                field_colors[i['arg1']] = i['arg2']
+        if i['name'] == 'score_change':
+            if max(scores) >= score_limit:
+                if inverted_victory_mode:
+                    j = max(scores)
+                else:
+                    j = min(scores)
+                winners = []
+                for k in range(players):
+                    if scores[k] == j:
+                        winners.append(k)
+                        game_events.add_event(True, 'blink', max_fps*blink_time - max_fps//2 - 1, k, 2)
+                        log.append(f'{k+1}W@{scores[k]}')
+                        log_cursor = max(0, len(log) - 10)
+                    else:
+                        game_events.add_event(True, 'blink', max_fps*blink_time - max_fps//2 - 1, k, 1)
+                        log.append(f'{k+1}F@{scores[k]}')
+                        log_cursor = max(0, len(log) - 10)
+                game_events.add_event(False, 'clear_score', max_fps*blink_time - max_fps//2 - 1)
+                for j in winners:
+                    victories[j] += 1
+        if i['name'] == 'clear_score':
+            scores = [0] * players
     if not changing_score:
         visible_scores = scores.copy()
     if current_ui == "menu":
