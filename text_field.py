@@ -1,5 +1,11 @@
 import pygame
-import fancy_blit
+try:
+    import fancy_blit
+except ModuleNotFoundError:
+    print("fancy_blit module is not present, can't use the fancy format function")
+    ALLOW_FANCY_FORMAT = False
+else:
+    ALLOW_FANCY_FORMAT = True # is this allowed?
 
 class text_field:
     def __init__(self, x, y, width, height, text, font, surface, type_='string', outline_color_active=(0, 0, 0), outline_color_inactive=(50, 50, 50), field_color=(240, 240, 240)):
@@ -28,7 +34,7 @@ class text_field:
         self.was_clicked = False
         self.enter = False # if the typing was stopped by pressing Enter
 
-    def _is_over(self, bkp_pos = None) -> bool:
+    def is_over(self, bkp_pos = None) -> bool:
         '''Returns true if mouse is over'''
         if bkp_pos == None:
             self.pos = pygame.mouse.get_pos()
@@ -39,7 +45,7 @@ class text_field:
         else:
             return False
 
-    def _update(self) -> str:
+    def update(self) -> str:
         '''Update the contents of the box and return the new value'''
         self.enter = False
         self.was_clicked = pygame.mouse.get_pressed()[0]
@@ -104,19 +110,19 @@ class text_field:
         return self.text
 
     def draw(self, update=True, text_color=(0, 0, 0), fancy_format=True) -> str:
-        '''Usage: 'temp = field_name.draw(...); if not temp is False: target = temp' where target is the string you want to get as user input'''
+        '''Usage: 'temp = field_name.draw(...); if temp is not False: target = temp' where target is the string you want to get as user input'''
         self.was_clicked = pygame.mouse.get_pressed()[0]
         if self.active and update:
             outline_color = self.outline_color_active
             outline_width = 4
-            self._update()
+            self.update()
         else:
             outline_color = self.outline_color_inactive
             outline_width = 2
 
         pygame.draw.rect(self.surface, self.field_color, (self.x, self.y, self.width, self.height))
 
-        if not fancy_format or self.type != 'string':
+        if not (fancy_format and ALLOW_FANCY_FORMAT) or self.type != 'string':
             text = self.font.render(str(self.text), 4, text_color, self.field_color)
             self.surface.blit(text, (self.x + 5, self.y))
         else:
@@ -127,7 +133,7 @@ class text_field:
         if update and self.was_clicked:
             self.was_clicked = False
             temp = self.active
-            self.active = self._is_over()
+            self.active = self.is_over()
             if self.active and not temp:
                 pygame.event.get()
             if temp == self.active or self.active:

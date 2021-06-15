@@ -7,13 +7,14 @@ class hyperlink:
         self.y = y
         self.text = text
 
-    def _draw(self,surface,font_size=60):
+    def draw(self,surface,font_size=60):
+        '''Simply draws the link'''
         font = pygame.font.Font('assets/denhome.otf', font_size)
         self.rendered_text = font.render(self.text, 1, self.color)
         surface.blit(self.rendered_text, (self.x, self.y))
 
-    def _is_over(self, bkp_pos=None) -> bool:
-        #Pos is the mouse position or a tuple of (x,y) coordinates
+    def is_over(self, bkp_pos=None) -> bool:
+        '''Returns true, if the cursor is pointing at the link'''
         if bkp_pos == None:
             self.pos = pygame.mouse.get_pos()
         else:
@@ -25,5 +26,5 @@ class hyperlink:
 
     def smart_draw(self, surface, font_size = 60, bkp_pos = None) -> bool:
         '''Draws the link and returns its click state'''
-        self._draw(surface, font_size)
-        return self._is_over(bkp_pos) and pygame.event.get(pygame.MOUSEBUTTONDOWN)
+        self.draw(surface, font_size)
+        return self.is_over(bkp_pos) and pygame.event.get(pygame.MOUSEBUTTONDOWN)

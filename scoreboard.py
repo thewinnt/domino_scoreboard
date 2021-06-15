@@ -1,20 +1,59 @@
 # init
+import os
 import json
 import tkinter
 import pygame
 import button
 import switch
 import config
+import random
 import hyperlink
 import text_field
 import fancy_blit
 import event_handler
+import multiprocessing
 from tkinter import filedialog
+
+try:
+    import gtts
+except ModuleNotFoundError:
+    print("You don't have gtts installed, so the narrator won't work. Install it by typing \"pip install gtts\" in you system console if you want to use this feature.")
+    allow_tts = False
+else:
+    allow_tts = True
+
+try: 
+    import playsound
+except ModuleNotFoundError:
+    print("You don't have playsound installed, so the narrator won't work. Install it by typing \"pip install playsound\" in you system console if you want to use this feature.")
+    allow_tts = False
+else:
+    allow_tts = True
+
+# speak code in case this isn't the main process
+def speak(my_text, lang):
+    import gtts
+    import playsound
+    rand = random.randint(-2147483648, 2147483647)
+    gtts.gTTS(text=my_text, lang=lang).save(f'temp{rand}.mp3')
+    playsound.playsound(f'temp{rand}.mp3', True)
+    os.remove(f'temp{rand}.mp3')
+    
+if __name__ != '__main__':
+    with open('temp.txt', 'r') as file:
+        to_speak = file.read()
+    try:
+        os.remove('temp.txt')
+    except:
+        pass
+    rand_num = speak(to_speak, 'en')
+    exit()
 
 useless = tkinter.Tk()
 useless.withdraw()
 
 pygame.init()
+pygame.mixer.init()
 
 gametick = pygame.time.Clock()
 game_events = event_handler.EventHandler()
@@ -22,8 +61,8 @@ game_events = event_handler.EventHandler()
 icon = pygame.image.load("assets/window.png")
 pygame.display.set_icon(icon)
 window = pygame.display.set_mode((1280, 720))
-pygame.display.set_caption("Dominoes scoreboard (v. 1.0 pre-release 2)")
-game_version = "v. 1.0-pre2"
+pygame.display.set_caption("Dominoes scoreboard (v. 1.0 pre-release 3)")
+game_version = "v. 1.0-pre3"
 
 font_28 = pygame.font.Font('assets/denhome.otf', 28)
 font_40 = pygame.font.Font('assets/denhome.otf', 40)
@@ -180,19 +219,6 @@ def draw_rect(x1, y1, x2, y2, fill_color = (0, 204, 204), outline=3, outline_col
     dy = y2 - y1
     pygame.draw.rect(surface, fill_color, (x1, y1, dx, dy))
     pygame.draw.rect(surface, outline_color, (x1, y1, dx, dy), outline)
-def draw_button(button, font_size = 60, surface=pygame.display.get_surface(), default_color=(0, 204, 204), hover_color=(0, 255, 255), click_color=(0, 102, 102), text_color=(0, 0, 0), outline_color=(0, 0, 0)) -> bool:
-    '''Draws the button and returns its click state'''
-    to_return = False
-    if button.isOver():
-        button.color = hover_color
-        if pygame.mouse.get_pressed()[0]:
-            button.color = click_color
-            pygame.event.clear()
-            to_return = True
-    if not button.isOver() and not pygame.mouse.get_pressed()[0]:
-        button.color = default_color
-    button.draw(surface, outline_color, text_color, font_size)
-    return to_return
 def blit(text, font, pos, center=False, color=(0, 0, 0), surface=pygame.display.get_surface()):
     '''Blits some text to a chosen surface with only one line instead of two'''
     j = font.render(text, 1, color)
@@ -210,6 +236,12 @@ def draw_text_box(text, font, pos, surface, min_width=100, centered=True, box_co
         surface.blit(rendered_text, (pos[0] + box_width / 2 - text_area[0] / 2, pos[1] + 25 - text_area[1] / 2))
     else:
         surface.blit(rendered_text, (pos[0] + 10, pos[1] + 25 - text_area[1] / 2))
+def narrate(text):
+    if allow_tts:
+        with open('temp.txt', 'w') as file:
+            file.write(text)
+        p = multiprocessing.Process(target=speak)
+        p.start()
 
 # blink control functions
 #def blink_half_second_multiple(player, color, count): # makes a player's field to change color for half a second
@@ -224,11 +256,11 @@ class menu:
     def __init__(self):
         self.surface = window
 
-        self.btn_new_file = button.button(color_board_outline, 490, 250, 300, 75, 'New file')
-        self.btn_import = button.button(color_board_outline, 490, 335, 300, 75, 'Open file')
-        self.btn_settings = button.button(color_board_outline, 490, 420, 300, 75, 'Settings')
+        self.btn_new_file = button.button(color_board_outline, 490, 250, 300, 75, self.surface, 'New file')
+        self.btn_import = button.button(color_board_outline, 490, 335, 300, 75, self.surface, 'Open file')
+        self.btn_settings = button.button(color_board_outline, 490, 420, 300, 75, self.surface, 'Settings')
 
-        self.btn_continue = button.button(color_board_outline, 490, 195, 300, 75, 'Continue')
+        self.btn_continue = button.button(color_board_outline, 490, 195, 300, 75, self.surface, 'Continue')
 
     def draw(self):
         global log
@@ -254,13 +286,13 @@ class menu:
             self.btn_new_file.y = 280
             self.btn_import.y = 365
             self.btn_settings.y = 450
-            if draw_button(self.btn_continue, 72, self.surface):
+            if self.btn_continue.smart_draw(72):
                 current_ui = 'game'
         else:
             self.btn_new_file.y = 250
             self.btn_import.y = 335
             self.btn_settings.y = 420
-        if draw_button(self.btn_import, 72, self.surface):
+        if self.btn_import.smart_draw(72):
             game_conf_file = filedialog.askopenfilename(title='Load game', filetypes=[('Game file', '*.json'), ('All files', '*.*')])
             try:
                 with open(game_conf_file, 'r', -1, 'utf-8') as file:
@@ -295,12 +327,12 @@ class menu:
             visible_scores = scores.copy()
             is_game_running = True
             current_ui = 'game'
-        if draw_button(self.btn_settings, 72, self.surface):
+        if self.btn_settings.smart_draw(72):
             ui_settings.blink_time.text = str(blink_time)
             ui_settings.game_name.text = game_name
             ui_settings.score_lim.text = str(score_limit)
             current_ui = 'settings'
-        if draw_button(self.btn_new_file, 72, self.surface):
+        if self.btn_new_file.smart_draw(72):
             predefine_variables() # we don't want to reload the previous game
             current_ui = 'setup'
         blit(game_version, font_40, (10, 680))
@@ -310,7 +342,10 @@ class settings:
     def __init__(self):
         self.surface = window
         # global settings
-        self.voice_enabled = switch.switch(1180, 100, self.surface) ## note: a switch is 86x36 pixels
+        if allow_tts:
+            self.voice_enabled = switch.switch(1180, 100, self.surface) ## note: a switch is 86x36 pixels
+        else:
+            self.voice_enabled = switch.switch(1180, 100, self.surface, (102, 204, 204), outline_color=(127, 127, 127), disable_color=(206, 206, 206))
         self.show_victories = switch.switch(1180, 150, self.surface)
         self.show_goal_progress = switch.switch(1180, 200, self.surface)
         self.blink_time = text_field.text_field(1070, 250, 200, 45, blink_time, font_50, self.surface, 'int')
@@ -318,9 +353,9 @@ class settings:
         self.game_name = text_field.text_field(1070, 350, 200, 45, game_name, font_50, self.surface)
         self.score_lim = text_field.text_field(1070, 400, 200, 45, score_limit, font_50, self.surface, 'int')
         self.score_mode = switch.switch(1180, 450, self.surface)
-        self.filename = button.button(color_board_outline, 1180, 500, 90, 40, 'Change')
-        self.goto_player_name = button.button(color_board_outline, 10, 550, 220, 65, 'Player names')
-        self.go_menu = button.button(color_board_outline, 10, 625, 220, 65, 'Main Menu')
+        self.filename = button.button(color_board_outline, 1180, 500, 90, 40, self.surface, 'Change')
+        self.goto_player_name = button.button(color_board_outline, 10, 550, 220, 65, self.surface, 'Player names')
+        self.go_menu = button.button(color_board_outline, 10, 625, 220, 65, self.surface, 'Main Menu')
         # player names
         self.player_names = []
         for i in range(18):
@@ -356,13 +391,19 @@ class settings:
                 with open(game_conf_file, 'w', -1, 'utf-8') as file:
                     file.write(json.dumps(game_config, indent=4, ensure_ascii=False))
         blit('Program settings', font_40, (20, 50), False, (100, 100, 100))
-        blit('Use voice output', font_72, (20, 80))
-        blit('Show player victory count', font_72, (20, 130))
-        blit('Show goal progress', font_72, (20, 180))
+        if allow_tts:
+            blit('Narrator', font_72, (20, 80))
+        else:
+            blit('Narrator', font_72, (20, 80), False, (127, 127, 127))
+        blit('Player victories', font_72, (20, 130))
+        blit('Goal progress', font_72, (20, 180))
         blit('Player visualization duration', font_72, (20, 230))
-        if self.voice_enabled.smart_draw(global_config.get('voice')):
-            voice = not voice
-            global_config.set('voice', voice)
+        if allow_tts:
+            if self.voice_enabled.smart_draw(global_config.get('voice')):
+                voice = not voice
+                global_config.set('voice', voice)
+        else:
+            self.voice_enabled.draw(False, (0, 0))
         if self.show_victories.smart_draw(global_config.get('victories')):
             show_victories = not show_victories
             global_config.set('victories', show_victories)
@@ -370,7 +411,7 @@ class settings:
             show_progress = not show_progress
             global_config.set('progress', show_progress)
         temp_blink_time = self.blink_time.draw()
-        if not temp_blink_time is False:
+        if temp_blink_time is not False:
             blink_time = temp_blink_time
             global_config.set('blink_time', temp_blink_time)
         if is_game_running:
@@ -390,13 +431,13 @@ class settings:
         blit('Save file', font_72, (20, 480))
         blit('(game will be saved)', font_40, (240, 640), False, (85, 85, 85))
         filename = font_50.render(game_conf_file, 4, (0, 0, 0))
-        self.surface.blit(filename, (1170 - filename.get_width(), 485))
-        if draw_button(self.goto_player_name, 72, self.surface):
+        self.surface.blit(filename, (1170 - filename.get_width(), 495))
+        if self.goto_player_name.smart_draw(72):
             for i in range(players):
                 self.player_names[i].text = names[i]
             if current_ui == 'pause':
                 current_ui = 'player_edit'
-        if draw_button(self.go_menu, 72):
+        if self.go_menu.smart_draw(72):
             if game_conf_file:
                 game_config['log'] = log
                 game_config['goals'] = goals
@@ -411,14 +452,14 @@ class settings:
                     config_file.write(json.dumps(game_config, indent=4, ensure_ascii=True))
             current_ui = 'menu'
         temp = self.game_name.draw()
-        if not temp is False:
+        if temp is not False:
             game_name = temp
         temp = self.score_lim.draw()
-        if not temp is False:
+        if temp is not False:
             score_limit = temp
         if self.score_mode.smart_draw(inverted_victory_mode):
             inverted_victory_mode = not inverted_victory_mode
-        if draw_button(self.filename):
+        if self.filename.smart_draw():
             temp = filedialog.asksaveasfilename(defaultextension = '.json', filetypes = [('JSON files', '*.json'), ('All files', '*.*')], title = 'Save game data')
             if temp != '':
                 game_conf_file = temp
@@ -429,7 +470,7 @@ class settings:
         for i in range(players):
             blit(f'Player {i+1}', font_72, (20+415*(i%3), (i//3) * 100 + 100))
             temp = self.player_names[i].draw()
-            if not temp is False:
+            if temp is not False:
                 names[i] = temp
                 game_config['names'][i] = temp
         if self.go_back.smart_draw(self.surface):
@@ -448,13 +489,13 @@ class game:
         self.game_name = text_field.text_field(800, 90, 460, 65, game_name, font_72, self.surface)
         self.player_count = text_field.text_field(800, 160, 460, 65, players, font_72, self.surface, 'int')
         self.score_lim = text_field.text_field(800, 230, 460, 65, score_limit, font_72, self.surface, 'int')
-        self.set_player_names = button.button(color_board_outline, 20, 300, 400, 65, 'Set player names')
-        self.start = button.button(color_board_outline, 950, 630, 310, 75, 'Save and start')
+        self.set_player_names = button.button(color_board_outline, 20, 300, 400, 65, self.surface, 'Set player names')
+        self.start = button.button(color_board_outline, 950, 630, 310, 75, self.surface, 'Save and start')
         self.go_menu = hyperlink.hyperlink((0, 0, 0), 10, 0, '< Main Menu')
-        self.start_no_file = button.button(color_board_outline, 585, 630, 350, 75, 'Start without saving')
+        self.start_no_file = button.button(color_board_outline, 585, 630, 350, 75, self.surface, 'Start without saving')
 
-        self.no_file = button.button((168, 0, 0), 425, 375, 200, 60, 'Continue')
-        self.try_again = button.button(color_board_outline, 655, 375, 200, 60, 'Back')
+        self.no_file = button.button((168, 0, 0), 425, 375, 200, 60, self.surface, 'Continue')
+        self.try_again = button.button(color_board_outline, 655, 375, 200, 60, self.surface, 'Back')
 
         self.color_index = [color_board_bg, color_red, color_green]
 
@@ -480,6 +521,11 @@ class game:
                           'reload': '§ffile §breload',
                           'save': '§ffile §bsave'}
 
+        self.operator_desc = {'+': 'plus',
+                              '-': 'minus',
+                              '*': 'times',
+                              '/': 'divided by'}
+
     def draw_setup(self):
         global game_name
         global players
@@ -496,6 +542,7 @@ class game:
         global max_page
         global log_cursor
         global is_game_running
+        global visible_scores
         self.surface.fill(color_bg)
         blit('New game', font_96, (640, 10), True)
         blit('Game name', font_72, (20, 80))
@@ -514,11 +561,11 @@ class game:
                 blit(i, font_50, (20, j*50 + 370), False, (200, 0, 0))
                 j += 1
         temp = self.game_name.draw(fancy_format=False)
-        if not temp is False:
+        if temp is not False:
             game_name = temp
             game_config['game_name'] = temp
         temp = self.player_count.draw()
-        if not temp is False:
+        if temp is not False:
             players = temp
             if players % 3:
                 max_page = players // 3
@@ -532,12 +579,12 @@ class game:
                 names = ['Player'] * players
                 game_config['names'] = ['player'] * players
         temp = self.score_lim.draw()
-        if not temp is False:
+        if temp is not False:
             score_limit = temp
             game_config['score_limit'] = temp
         if self.go_menu.smart_draw(self.surface):
             current_ui = 'menu'
-        if draw_button(self.set_player_names, 72, self.surface) and players <= 18:
+        if self.set_player_names.smart_draw(72) and players <= 18:
             for i in range(players):
                 ui_settings.player_names[i].text = names[i]
             try:
@@ -547,7 +594,7 @@ class game:
                 names = ['player'] * players
                 game_config['names'] = ['player'] * players
             current_ui = 'player_setup'
-        if draw_button(self.start_no_file, 72, self.surface) and not error_messages:
+        if self.start_no_file.smart_draw(72) and not error_messages:
             field_colors = [0] * players
             scores = [0] * players
             visible_scores = [0] * players
@@ -564,7 +611,7 @@ class game:
             game_config['limit_mode'] = inverted_victory_mode
             is_game_running = True
             current_ui = 'game'
-        if draw_button(self.start, 72, self.surface):
+        if self.start.smart_draw(72):
             if not error_messages:
                 game_conf_file = filedialog.asksaveasfilename(defaultextension = '.json', filetypes = [('JSON files', '*.json'), ('All files', '*.*')], title = 'Save game data')
                 try:
@@ -586,9 +633,9 @@ class game:
                     blit("You didn't choose a file, which means that", font_40, (640, 300), True)
                     blit("nothing will be saved. Continue?", font_40, (640, 330), True)
                     while True:
-                        if draw_button(self.no_file, 60, self.surface, (168, 0, 0), (200, 0, 0), (128, 0, 0)):
+                        if self.no_file.smart_draw(60, None, (168, 30, 30), (220, 45, 45), (128, 15, 15)):
                             break
-                        if draw_button(self.try_again):
+                        if self.try_again.smart_draw():
                             return
                         pygame.event.get()
                         pygame.display.update()
@@ -622,32 +669,32 @@ class game:
         except:
             pass
         if show_progress:
-            if goals[first] != '0':
+            if eval(goals[first]) != 0:
                 goal_first = str(eval(goals[first]) - victories[first]) + ' left (' + str(round(victories[first] / eval(goals[first]) * 100, 1)) + '%)'
             else:
-                goal_first = '0'
+                goal_first = f'{str(eval(goals[first]) - victories[first])} left'
             try:
-                if goals[second] != '0':
+                if eval(goals[second]) != 0:
                     goal_second = str(eval(goals[second]) - victories[second]) + ' left (' + str(round(victories[second] / eval(goals[second]) * 100, 1)) + '%)'
                 else:
-                    goal_second = '0'
-                if goals[third] != '0':
+                    goal_second = f'{str(eval(goals[second]) - victories[second])} left'
+                if eval(goals[third]) != 0:
                     goal_third = str(eval(goals[third]) - victories[third]) + ' left (' + str(round(victories[third] / eval(goals[third]) * 100, 1)) + '%)'
                 else:
-                    goal_third = '0'
+                    goal_third = f'{str(eval(goals[first]) - victories[first])} left'
             except:
                 pass
         else:
-            if goals[first] != '0':
-                goal_first = str(eval(goals[first]) - victories[first]) + ' left'
+            if eval(goals[first]) != '0':
+                goal_first = str(eval(goals[third]) - victories[third]) + ' left'
             else:
                 goal_first = '0'
             try:
-                if goals[second] != '0':
+                if eval(goals[second]) != '0':
                     goal_second = str(eval(goals[second]) - victories[second]) + ' left'
                 else:
                     goal_second = '0'
-                if goals[third] != '0':
+                if eval(goals[third]) != '0':
                     goal_third = str(eval(goals[third]) - victories[third]) + ' left'
                 else:
                     goal_third = '0'
@@ -781,12 +828,12 @@ class game:
         if pygame.event.get(pygame.MOUSEBUTTONDOWN):
             if is_updating:
                 is_updating = False
-            elif self.command_line._is_over():
+            elif self.command_line.is_over():
                 pygame.event.get()
                 is_updating = not is_updating
         pygame.draw.rect(self.surface, (240, 240, 240), (10, 660, 950, 50))
         if is_updating:
-            command = self.command_line._update()
+            command = self.command_line.update()
             if command and command[-1] == '§':
                 command = command[:-1] # invalid character check
                 self.command_line.text = self.command_line.text[:-1]
@@ -922,7 +969,7 @@ class game:
                                     visible[3] = '§4' + visible[3]
                                     valid = False
                         elif args[2] == 'relative':
-                            message = '§fgoal §b<player: int> §frelative §6<player: int|most|least> §a<operation: +|-|/|*> §d<value: float>'
+                            message = '§fgoal §b<player: int> §frelative §6<player: int|most|least> [§a<operation: +|-|/|*> §d<value: float>]'
                             if len(args) > 3:
                                 try:
                                     int(args[3])
@@ -1110,6 +1157,7 @@ class game:
                             game_events.add_event(False, 'score_change', max_fps)
                             log.append(f'P{int(args[2])}+{int(args[3])}')
                             log_cursor = max(0, len(log) - 10)
+                            narrate(f'Added {args[3]} points to {names[int(args[2]) - 1]}')
                     elif args[1] == 'remove': ## REMOVE ARGUMENT
                         if args[2] == 'all':
                             try:
@@ -1133,25 +1181,30 @@ class game:
                             game_events.add_event(False, 'score_change', max_fps)
                             log.append(f'P{int(args[2])}-{int(args[3])}')
                             log_cursor = max(0, len(log) - 10)
+                            narrate(f'Taken {args[3]} points from {names[int(args[2]) - 1]}')
                     elif args[1] == 'set': ## SET ARGUMENT
                         scores[int(args[2]) - 1] = int(args[3]) # won't be smooth
                         game_events.add_event(False, 'score_change', max_fps)
                         log.append(f'P{int(args[2])}={int(args[3])}')
                         log_cursor = max(0, len(log) - 10)
+                        narrate(f"Set {names[int(args[2]) - 1]}'s score to {args[3]}")
                     elif args[1] == 'limit': ## LIMIT ARGUMENT
                         if args[2] == 'set':
                             score_limit = int(args[3])
                             log.append(f'SL={int(args[3])}')
                             log_cursor = max(0, len(log) - 10)
+                            narrate(f'Set the score limit to {args[3]}')
                         elif args[2] == 'mode':
                             if args[3] == 'least':
                                 inverted_victory_mode = False
                                 log.append('LM=LEAST')
                                 log_cursor = max(0, len(log) - 10)
+                                narrate(f'The player with the lowest score now wins')
                             else:
                                 inverted_victory_mode = True
                                 log.append('LM=MOST')
                                 log_cursor = max(0, len(log) - 10)
+                                narrate(f'The player with the highest score now wins')
                 else:
                     print(f'Incomplete command: {command}')
             elif args[0] == 'double': ## DOUBLE COMMAND
@@ -1161,6 +1214,7 @@ class game:
                         log_cursor = max(0, len(log) - 10)
                         victories[int(args[2]) - 1] += 1
                         game_events.add_event(True, 'blink', max_fps*blink_time - max_fps//2, int(args[2]) - 1, 2)
+                        narrate(f'{names[int(args[2]) - 1]} ended with 0 0 and won')
                     elif args[1] == '6':
                         log.append(f'{int(args[2])}E6')
                         log_cursor = max(0, len(log) - 10)
@@ -1169,6 +1223,7 @@ class game:
                                 scores[i] += 50
                                 game_events.add_event(True, 'increase_player', max_fps, i, 50 / max_fps)
                                 game_events.add_event(True, 'blink', max_fps*blink_time - max_fps//2, i, 1)
+                        narrate(f'{names[int(args[2]) - 1]} ended with 6 6, so everyone else gets 50 points')
                         game_events.add_event(False, 'score_change', max_fps)
                 else:
                     print(f'Incomplete command: {command}')
@@ -1178,15 +1233,18 @@ class game:
                         game_name = command[12:]
                         log.append(f'GN={args[2]}')
                         log_cursor = max(0, len(log) - 10)
+                        narrate(f'Renamed the game to "{command[12:]}"')
                     else:
                         if players < 10:
                             names[int(args[1]) - 1] = command[9:]
                             log.append(f'P{int(args[1])}N={command[9:]}')
                             log_cursor = max(0, len(log) - 10)
+                            narrate(f'Player {args[1]} now wants themselves to be called {command[9:]}')
                         else:
                             names[int(args[1]) - 1] = command[10:]
                             log.append(f'P{int(args[1])}N={command[10:]}')
                             log_cursor = max(0, len(log) - 10)
+                            narrate(f'Player {args[1]} now wants themselves to be called {command[10:]}')
                 except:
                     print(f'Incomplete command: {command}')
             elif args[0] == 'menu':
@@ -1208,10 +1266,16 @@ class game:
                     if args[1] == 'set':
                         if len(args) > 2:
                             game_conf_file = command[9:]
+                            log.append(f'F={game_conf_file}')
+                            log_cursor = max(0, len(log) - 10)
+                            narrate(f'Set the save file to {game_conf_file}')
                         else:
                             temp = filedialog.asksaveasfilename(defaultextension = '.json', filetypes = [('JSON files', '*.json'), ('All files', '*.*')], title = 'Save game data')
                             if temp:
                                 game_conf_file = temp
+                                log.append(f'F={game_conf_file}')
+                                log_cursor = max(0, len(log) - 10)
+                                narrate(f'Set the save file to {game_conf_file}')
                     if args[1] == 'save':
                         game_config['log'] = log
                         game_config['goals'] = goals
@@ -1224,6 +1288,7 @@ class game:
                         game_config['limit_mode'] = inverted_victory_mode
                         with open(game_conf_file, 'w') as config_file:
                             config_file.write(json.dumps(game_config, indent=4, ensure_ascii=True))
+                        narrate('Saved the game')
                     if args[1] == 'reload':
                         try:
                             with open(game_conf_file, 'r', -1, 'utf-8') as file:
@@ -1254,39 +1319,65 @@ class game:
                         else:
                             max_page = players // 3 - 1
                         field_colors = [0] * players
+                        narrate(f'Reloaded the save file')
             elif args[0] == 'help':
                 print(command_help)
+                narrate(f'Help was printed to console')
             elif args[0] == 'log':
                 if len(args) > 2:
                     if args[1] == 'add':
                         log.append(command[8:])
                         log_cursor = max(0, len(log) - 10)
+                        narrate(f'Added "{command[8:]}" to the log')
                     elif args[1] == 'remove':
                         if len(args) > 3:
-                            del log[int(args[2]) - 1:int(args[3])]
+                            del log[int(args[2])-1 : int(args[3])]
+                            narrate(f'Removed elements from {args[2]} to {args[3]} from the log')
                         else:
                             del log[int(args[2]) - 1]
+                            narrate(f'Removed element {args[2]} from the log')
                 else:
                     print(f'Incomplete command: {command}')
             elif args[0] == 'goal':
                 if len(args) > 3:
                     if args[2] == 'fixed':
                         goals[int(args[1]) - 1] = args[3]
+                        log.append(f'{args[1]}G={args[3]}')
+                        log_cursor = max(0, len(log) - 10)
+                        narrate(f'{names[int(args[1]) - 1]} set their victory goal to {args[3]}')
                     elif args[2] == 'relative':
                         if len(args) > 3:
                             if args[3] == 'most':
                                 goals[int(args[1]) - 1] = 'max(victories)'
+                                player_desc = 'those of the player with the most victories'
                             elif args[3] == 'least':
                                 goals[int(args[1]) - 1] = 'min(victories)'
+                                player_desc = 'those count of the player with the least victories'
                             else:
                                 goals[int(args[1]) - 1] = f'victories[{int(args[3]) - 1}]'
+                                player_desc = f"{names[int(args[3]) - 1]}'s victory count"
                         if len(args) > 5:
                             goals[int(args[1]) - 1] = 'int(' + goals[int(args[1]) - 1] + args[4] + args[5] + ')'
+                            if args[3] in ['least', 'most']:
+                                log.append(f'{args[1]}G=[{args[3].upper()}]{args[4]}{args[5]}')
+                            else:
+                                log.append(f'{args[1]}G=[{args[3].upper()}]{args[4]}{args[5]}')
+                            narrate(f"{names[int(args[1]) - 1]} set their victory goal to {player_desc} {self.operator_desc[args[4]]} {args[5]}")
+                        else:
+                            if args[3] in ['least', 'most']:
+                                log.append(f'{args[1]}G=[{args[3].upper()}]')
+                            else:
+                                log.append(f'{args[1]}G=[{args[3].upper()}]')
+                            narrate(f"{names[int(args[1]) - 1]} set their victory goal to {player_desc}")
+                        log_cursor = max(0, len(log) - 10)
                 else:
                     print(f'Incomplete command: {command}')
             elif args[0] == 'victory':
                 if len(args) > 2:
                     victories[int(args[1]) - 1] = int(args[2])
+                    log.append(f'{args[1]}V={args[2]}')
+                    log_cursor = max(0, len(log) - 10)
+                    narrate(f"Set {names[int(args[1]) - 1]}'s victory count to {args[2]}")
                 else:
                     print(f'Incomplete command: {command}')
             command = ''
@@ -1342,8 +1433,18 @@ while True:
                         log.append(f'{k+1}F@{scores[k]}')
                         log_cursor = max(0, len(log) - 10)
                 game_events.add_event(False, 'clear_score', max_fps*blink_time - max_fps//2 - 1)
-                for j in winners:
-                    victories[j] += 1
+                win_names = []
+                for m in winners:
+                    victories[m] += 1
+                    win_names.append(names[m])
+                if len(winners) > 1:
+                    win_final_names = ''
+                    for m in range(len(winners) - 1):
+                        win_final_names += f'{win_names[m]}, '
+                    win_final_names += f' and {win_names[-1]}'
+                else:
+                    win_final_names = win_names[0]
+                narrate(f'{win_final_names} won at {j} points')
         if i['name'] == 'clear_score':
             scores = [0] * players
     if not changing_score:
