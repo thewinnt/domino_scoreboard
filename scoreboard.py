@@ -1,23 +1,50 @@
 # init
 import os
 import json
-import tkinter
-import pygame
-import button
-import switch
-import config
 import random
-import hyperlink
-import text_field
-import fancy_blit
-import event_handler
-import multiprocessing
-from tkinter import filedialog
+import config
+if __name__ == '__main__':
+    import pygame
+    import button
+    import switch
+    import tkinter
+    import hyperlink
+    import text_field
+    import fancy_blit
+    import dropdown_list
+    import event_handler
+    import multiprocessing
+    from tkinter import filedialog
+
+global_config = config.config({}, 'config_global.json') # load the config file
+global_config.load('config_global.json')
+global_config.get('voice', True)
+global_config.get('victories', True)
+global_config.get('progress', True)
+global_config.get('blink_time', 5) # for each setting we need, check if it's there and if it's not, set it to default value
+global_config.get('max_fps', 60)
+global_config.get('lang', 'en') # this is the only reason i moved this here
+lang_type = global_config.get('lang')
+
+try:
+    with open(f'assets/lang/{lang_type}.json', 'r', -1, 'utf-8') as lang_file:
+        lang = json.load(lang_file)
+except:
+    try:
+        print(f'File error: language file "assets/lang/{lang_type}.json" not found, gotta use English')
+        with open('assets/lang/en.json', 'r', -1, 'utf-8') as lang_file:
+            lang = json.load(lang_file)
+        lang_type = 'en'
+        global_config.set('lang', 'en')
+    except:
+        print('File error: ENGLISH LANGUAGE FILE (assets/lang/en.json) NOT FOUND')
+        input('Cannot start the program, press Enter to exit...')
+        exit(-1)
 
 try:
     import gtts
 except ModuleNotFoundError:
-    print("You don't have gtts installed, so the narrator won't work. Install it by typing \"pip install gtts\" in you system console if you want to use this feature.")
+    print(lang['err_lib_not_installed'].format(lib='gtts'))
     allow_tts = False
 else:
     allow_tts = True
@@ -25,15 +52,13 @@ else:
 try: 
     import playsound
 except ModuleNotFoundError:
-    print("You don't have playsound installed, so the narrator won't work. Install it by typing \"pip install playsound\" in you system console if you want to use this feature.")
+    print(lang['err_lib_not_installed'].format(lib='playsound'))
     allow_tts = False
 else:
     allow_tts = True
 
 # speak code in case this isn't the main process
 def speak(my_text, lang):
-    import gtts
-    import playsound
     rand = random.randint(-2147483648, 2147483647)
     gtts.gTTS(text=my_text, lang=lang).save(f'temp{rand}.mp3')
     playsound.playsound(f'temp{rand}.mp3', True)
@@ -46,7 +71,7 @@ if __name__ != '__main__':
         os.remove('temp.txt')
     except:
         pass
-    rand_num = speak(to_speak, 'en')
+    rand_num = speak(to_speak, lang['google_lang_code'])
     exit()
 
 useless = tkinter.Tk()
@@ -61,8 +86,8 @@ game_events = event_handler.EventHandler()
 icon = pygame.image.load("assets/window.png")
 pygame.display.set_icon(icon)
 window = pygame.display.set_mode((1280, 720))
-pygame.display.set_caption("Dominoes scoreboard (v. 1.0 pre-release 3)")
-game_version = "v. 1.0-pre3"
+pygame.display.set_caption(f"{lang['program_name']} (v. 1.0 release candidate 1)")
+game_version = "v. 1.0-rc1"
 
 font_28 = pygame.font.Font('assets/denhome.otf', 28)
 font_40 = pygame.font.Font('assets/denhome.otf', 40)
@@ -89,14 +114,6 @@ color_log_index = (87, 94, 117)
 color_log_background = (252, 102, 44)
 color_log_outline = (223, 91, 38)
 color_log_fill = (229, 240, 255)
-
-global_config = config.config({}, 'config_global.json') # load the config file
-global_config.load('config_global.json')
-global_config.get('voice', True)
-global_config.get('victories', True)
-global_config.get('progress', True)
-global_config.get('blink_time', 5) # for each setting we need, check if it's there and if it's not, set it to default value
-global_config.get('max_fps', 60)
 
 game_config = {}
 
@@ -163,6 +180,7 @@ def predefine_variables():
     global command
     global log_cursor
     global was_pressed
+    global was_pressed_esc
     global is_updating
     global message
     global command_help
@@ -197,18 +215,32 @@ def predefine_variables():
     log_cursor = 0
 
     was_pressed = False
+    was_pressed_esc = False
     is_updating = False
 
-    message = 'Enter the command here:'
+    message = lang['enter_command']
 
     try:
-        with open('assets/command_help.txt', 'r') as help_file:
+        with open(f'assets/command_help_{lang_type}.txt', 'r', -1, 'utf-8') as help_file:
             command_help = help_file.read()
     except:
-        command_help = 'Help file missing'
-        print('File error: missing file - assets/command_help.txt; help command will not work')
+        print(lang['err_no_translated_help'].format(lang=lang_type))
+        try:
+            with open('assets/command_help_en.txt', 'r', -1, 'utf-8') as help_file:
+                command_help = help_file.read()
+        except:
+            command_help = lang['no_help']
+            print(lang['err_no_help'])
 
 predefine_variables()
+available_lang_ids = os.listdir('assets/lang')
+available_langs = []
+available_lang_names = []
+for i in range(len(available_lang_ids)):
+    available_lang_ids[i] = available_lang_ids[i][:-5]
+    with open(f'assets/lang/{available_lang_ids[i]}.json', 'r', -1, 'utf-8') as file:
+        available_langs.append(json.load(file))
+        available_lang_names.append(available_langs[i]['lang_name'])
 
 # utility functions
 def draw_rect(x1, y1, x2, y2, fill_color = (0, 204, 204), outline=3, outline_color = (0, 0, 0), surface=pygame.display.get_surface()):
@@ -222,8 +254,10 @@ def draw_rect(x1, y1, x2, y2, fill_color = (0, 204, 204), outline=3, outline_col
 def blit(text, font, pos, center=False, color=(0, 0, 0), surface=pygame.display.get_surface()):
     '''Blits some text to a chosen surface with only one line instead of two'''
     j = font.render(text, 1, color)
-    if center:
+    if center is True:
         pos = (pos[0]-j.get_width() / 2, pos[1])
+    elif center == 'back':
+        pos = (pos[0]-j.get_width(), pos[1])
     surface.blit(j, pos)
 def draw_text_box(text, font, pos, surface, min_width=100, centered=True, box_color=color_info_bg, box_outline_color=color_info_outline, text_color=(255, 255, 255)):
     text = str(text) # this function draws a text box that looks like a Scratch variable (no input available)
@@ -237,7 +271,7 @@ def draw_text_box(text, font, pos, surface, min_width=100, centered=True, box_co
     else:
         surface.blit(rendered_text, (pos[0] + 10, pos[1] + 25 - text_area[1] / 2))
 def narrate(text):
-    if allow_tts:
+    if allow_tts and voice:
         with open('temp.txt', 'w') as file:
             file.write(text)
         p = multiprocessing.Process(target=speak)
@@ -256,11 +290,11 @@ class menu:
     def __init__(self):
         self.surface = window
 
-        self.btn_new_file = button.button(color_board_outline, 490, 250, 300, 75, self.surface, 'New file')
-        self.btn_import = button.button(color_board_outline, 490, 335, 300, 75, self.surface, 'Open file')
-        self.btn_settings = button.button(color_board_outline, 490, 420, 300, 75, self.surface, 'Settings')
+        self.btn_new_file = button.button(color_board_outline, 490, 250, 300, 75, self.surface, lang['btn_new_file'])
+        self.btn_import = button.button(color_board_outline, 490, 335, 300, 75, self.surface, lang['btn_open'])
+        self.btn_settings = button.button(color_board_outline, 490, 420, 300, 75, self.surface, lang['btn_settings'])
 
-        self.btn_continue = button.button(color_board_outline, 490, 195, 300, 75, self.surface, 'Continue')
+        self.btn_continue = button.button(color_board_outline, 490, 195, 300, 75, self.surface, lang['btn_continue'])
 
     def draw(self):
         global log
@@ -286,13 +320,13 @@ class menu:
             self.btn_new_file.y = 280
             self.btn_import.y = 365
             self.btn_settings.y = 450
-            if self.btn_continue.smart_draw(72):
+            if self.btn_continue.smart_draw(72) and pygame.event.get(pygame.MOUSEBUTTONDOWN):
                 current_ui = 'game'
         else:
             self.btn_new_file.y = 250
             self.btn_import.y = 335
             self.btn_settings.y = 420
-        if self.btn_import.smart_draw(72):
+        if self.btn_import.smart_draw(72) and pygame.event.get(pygame.MOUSEBUTTONDOWN):
             game_conf_file = filedialog.askopenfilename(title='Load game', filetypes=[('Game file', '*.json'), ('All files', '*.*')])
             try:
                 with open(game_conf_file, 'r', -1, 'utf-8') as file:
@@ -302,7 +336,7 @@ class menu:
             try:
                 game_name = game_config['game_name']
             except KeyError:
-                game_name = '<error>'
+                game_name = lang['no_game_name']
             try:
                 log = game_config['log']
                 log_cursor = max(0, len(log) - 10)
@@ -317,7 +351,7 @@ class menu:
                 score_limit = game_config['score_limit']
                 inverted_victory_mode = game_config['limit_mode']
             except KeyError:
-                print('File error: some of the critical values were not found, cannot proceed')
+                print(lang['err_cannot_load_game'])
                 return
             if players % 3:
                 max_page = players // 3
@@ -327,13 +361,14 @@ class menu:
             visible_scores = scores.copy()
             is_game_running = True
             current_ui = 'game'
-        if self.btn_settings.smart_draw(72):
+        if self.btn_settings.smart_draw(72) and pygame.event.get(pygame.MOUSEBUTTONDOWN):
             ui_settings.blink_time.text = str(blink_time)
             ui_settings.game_name.text = game_name
             ui_settings.score_lim.text = str(score_limit)
             current_ui = 'settings'
-        if self.btn_new_file.smart_draw(72):
+        if self.btn_new_file.smart_draw(72) and pygame.event.get(pygame.MOUSEBUTTONDOWN):
             predefine_variables() # we don't want to reload the previous game
+            ui_game.__init__() # that is needed too
             current_ui = 'setup'
         blit(game_version, font_40, (10, 680))
 
@@ -349,20 +384,23 @@ class settings:
         self.show_victories = switch.switch(1180, 150, self.surface)
         self.show_goal_progress = switch.switch(1180, 200, self.surface)
         self.blink_time = text_field.text_field(1070, 250, 200, 45, blink_time, font_50, self.surface, 'int')
+        self.language = dropdown_list.DropdownList(available_lang_names, available_lang_ids.index(lang_type), (1270, 300), font_50, self.surface, 200,
+                                                   False, 6, color_board_outline, (0, 232, 232), color_scroll=(0, 63, 63),
+                                                   color_hover_base=(0, 240, 240), color_hover_origin=color_bg,
+                                                   color_hover_scroll=(0, 0, 0))
         # game settings
-        self.game_name = text_field.text_field(1070, 350, 200, 45, game_name, font_50, self.surface)
-        self.score_lim = text_field.text_field(1070, 400, 200, 45, score_limit, font_50, self.surface, 'int')
-        self.score_mode = switch.switch(1180, 450, self.surface)
-        self.filename = button.button(color_board_outline, 1180, 500, 90, 40, self.surface, 'Change')
-        self.goto_player_name = button.button(color_board_outline, 10, 550, 220, 65, self.surface, 'Player names')
-        self.go_menu = button.button(color_board_outline, 10, 625, 220, 65, self.surface, 'Main Menu')
+        self.game_name = text_field.text_field(1070, 400, 200, 45, game_name, font_50, self.surface)
+        self.score_lim = text_field.text_field(1070, 450, 200, 45, score_limit, font_50, self.surface, 'int')
+        self.score_mode = switch.switch(1180, 500, self.surface)
+        self.filename = button.button(color_board_outline, 1120, 550, 150, 40, self.surface, lang['btn_change_file'])
+        self.goto_player_name = button.button(color_board_outline, 20, 600, 320, 65, self.surface, lang['btn_edit_player_names'])
+        self.go_menu = button.button(color_board_outline, 350, 600, 320, 65, self.surface, lang['btn_menu'])
         # player names
         self.player_names = []
         for i in range(18):
             self.player_names.append(text_field.text_field(20+415*(i%3) + 175, (i//3) * 100 + 100, 220, 50, '', font_50, self.surface))
         # utility stuff
-        self.go_back = hyperlink.hyperlink((0, 0, 0), 10, 0, '< Back')
-
+        self.go_back = hyperlink.hyperlink((0, 0, 0), 10, 0, lang['link_back'])
         ## note: everything in self is not the settings, but the tool used to change them
     
     def draw_global(self):
@@ -371,8 +409,22 @@ class settings:
         global show_victories
         global show_progress
         global blink_time
+        global lang_type
+        global lang
+        global was_pressed_esc
+        global message
+        global command_help
+        if not was_pressed_esc and pygame.key.get_pressed()[pygame.K_ESCAPE]:
+            was_pressed_esc = True
+            is_clicked = True
+        elif was_pressed_esc and pygame.key.get_pressed()[pygame.K_ESCAPE]:
+            was_pressed_esc = True
+            is_clicked = False
+        else:
+            was_pressed_esc = False
+            is_clicked = False
         self.surface.fill(color_bg)
-        if self.go_back.smart_draw(self.surface):
+        if self.go_back.smart_draw(self.surface) or is_clicked:
             if current_ui == 'settings':
                 current_ui = 'menu'
             else:
@@ -390,14 +442,15 @@ class settings:
                 game_config['limit_mode'] = inverted_victory_mode
                 with open(game_conf_file, 'w', -1, 'utf-8') as file:
                     file.write(json.dumps(game_config, indent=4, ensure_ascii=False))
-        blit('Program settings', font_40, (20, 50), False, (100, 100, 100))
+        blit(lang['global_settings'], font_40, (20, 50), False, (100, 100, 100))
         if allow_tts:
-            blit('Narrator', font_72, (20, 80))
+            blit(lang['narrator'], font_72, (20, 80))
         else:
-            blit('Narrator', font_72, (20, 80), False, (127, 127, 127))
-        blit('Player victories', font_72, (20, 130))
-        blit('Goal progress', font_72, (20, 180))
-        blit('Player visualization duration', font_72, (20, 230))
+            blit(lang['narrator'], font_72, (20, 80), False, (127, 127, 127))
+        blit(lang['show_player_victories'], font_72, (20, 130))
+        blit(lang['show_goal_progress'], font_72, (20, 180))
+        blit(lang['blink_time'], font_72, (20, 230))
+        blit(lang['language'], font_72, (20, 280))
         if allow_tts:
             if self.voice_enabled.smart_draw(global_config.get('voice')):
                 voice = not voice
@@ -416,6 +469,26 @@ class settings:
             global_config.set('blink_time', temp_blink_time)
         if is_game_running:
             self._draw_game()
+        temp = self.language.update()
+        if temp is not None:
+            lang_type = available_lang_ids[temp]
+            lang = available_langs[temp]
+            self.__init__()
+            ui_menu.__init__()
+            ui_game.__init__() # we need to update all the buttons since they are defined once in __init__ and don't update immediately
+            global_config.set('lang', lang_type)
+            message = lang['enter_command']
+            try:
+                with open(f'assets/command_help_{lang_type}.txt', 'r', -1, 'utf-8') as help_file:
+                    command_help = help_file.read()
+            except:
+                print(lang['err_no_translated_help'].format(lang=lang_type))
+                try:
+                    with open('assets/command_help_en.txt', 'r', -1, 'utf-8') as help_file:
+                        command_help = help_file.read()
+                except:
+                    command_help = lang['no_help']
+                    print(lang['err_no_help'])
 
     def _draw_game(self):
         global current_ui
@@ -424,14 +497,13 @@ class settings:
         global game_conf_file
         global inverted_victory_mode
         global is_game_running
-        blit('Game settings', font_40, (20, 290), False, (100, 100, 100))
-        blit('Game name', font_72, (20, 320))
-        blit('Score limit', font_72, (20, 370))
-        blit('Victory for the player with highest score', font_72, (20, 420))
-        blit('Save file', font_72, (20, 480))
-        blit('(game will be saved)', font_40, (240, 640), False, (85, 85, 85))
-        filename = font_50.render(game_conf_file, 4, (0, 0, 0))
-        self.surface.blit(filename, (1170 - filename.get_width(), 495))
+        blit(lang['game_settings'], font_40, (20, 350), False, (100, 100, 100))
+        blit(lang['game_name'], font_72, (20, 380))
+        blit(lang['score_limit'], font_72, (20, 430))
+        blit(lang['victory_mode'], font_72, (20, 480))
+        blit(lang['save_file'], font_72, (20, 530))
+        blit(lang['game_will_be_saved'], font_40, (680, 620), False, (85, 85, 85))
+        blit(game_conf_file, font_50, (1115, 545), 'back')
         if self.goto_player_name.smart_draw(72):
             for i in range(players):
                 self.player_names[i].text = names[i]
@@ -466,14 +538,24 @@ class settings:
 
     def draw_player_list(self):
         global current_ui
+        global was_pressed_esc
+        if not was_pressed_esc and pygame.key.get_pressed()[pygame.K_ESCAPE]:
+            was_pressed_esc = True
+            is_clicked = True
+        elif was_pressed_esc and pygame.key.get_pressed()[pygame.K_ESCAPE]:
+            was_pressed_esc = True
+            is_clicked = False
+        else:
+            was_pressed_esc = False
+            is_clicked = False
         self.surface.fill(color_bg)
         for i in range(players):
-            blit(f'Player {i+1}', font_72, (20+415*(i%3), (i//3) * 100 + 100))
+            blit(lang['player_name_desc'].format(num=i+1), font_72, (20+415*(i%3), (i//3) * 100 + 100))
             temp = self.player_names[i].draw()
             if temp is not False:
                 names[i] = temp
                 game_config['names'][i] = temp
-        if self.go_back.smart_draw(self.surface):
+        if self.go_back.smart_draw(self.surface) or is_clicked:
             if current_ui == 'player_edit':
                 current_ui = 'pause'
             else:
@@ -489,13 +571,13 @@ class game:
         self.game_name = text_field.text_field(800, 90, 460, 65, game_name, font_72, self.surface)
         self.player_count = text_field.text_field(800, 160, 460, 65, players, font_72, self.surface, 'int')
         self.score_lim = text_field.text_field(800, 230, 460, 65, score_limit, font_72, self.surface, 'int')
-        self.set_player_names = button.button(color_board_outline, 20, 300, 400, 65, self.surface, 'Set player names')
-        self.start = button.button(color_board_outline, 950, 630, 310, 75, self.surface, 'Save and start')
-        self.go_menu = hyperlink.hyperlink((0, 0, 0), 10, 0, '< Main Menu')
-        self.start_no_file = button.button(color_board_outline, 585, 630, 350, 75, self.surface, 'Start without saving')
+        self.set_player_names = button.button(color_board_outline, 20, 300, 400, 65, self.surface, lang['btn_set_player_names'])
+        self.start = button.button(color_board_outline, 950, 630, 310, 75, self.surface, lang['btn_save'])
+        self.go_menu = hyperlink.hyperlink((0, 0, 0), 10, 0, lang['link_menu'])
+        self.start_no_file = button.button(color_board_outline, 585, 630, 350, 75, self.surface, lang['btn_start_no_save'])
 
-        self.no_file = button.button((168, 0, 0), 425, 375, 200, 60, self.surface, 'Continue')
-        self.try_again = button.button(color_board_outline, 655, 375, 200, 60, self.surface, 'Back')
+        self.no_file = button.button((168, 0, 0), 425, 375, 200, 60, self.surface, lang['btn_continue'])
+        self.try_again = button.button(color_board_outline, 655, 375, 200, 60, self.surface, lang['btn_back'])
 
         self.color_index = [color_board_bg, color_red, color_green]
 
@@ -521,10 +603,10 @@ class game:
                           'reload': '§ffile §breload',
                           'save': '§ffile §bsave'}
 
-        self.operator_desc = {'+': 'plus',
-                              '-': 'minus',
-                              '*': 'times',
-                              '/': 'divided by'}
+        self.operator_desc = {'+': lang['operator_plus'],
+                              '-': lang['operator_minus'],
+                              '*': lang['operator_mult'],
+                              '/': lang['operator_div']}
 
     def draw_setup(self):
         global game_name
@@ -543,18 +625,29 @@ class game:
         global log_cursor
         global is_game_running
         global visible_scores
+        global was_pressed
+        global was_pressed_esc
         self.surface.fill(color_bg)
-        blit('New game', font_96, (640, 10), True)
-        blit('Game name', font_72, (20, 80))
-        blit('Number of players', font_72, (20, 150))
-        blit('Score to lose (score limit)', font_72, (20, 220))
+        if not was_pressed_esc and pygame.key.get_pressed()[pygame.K_ESCAPE]:
+            was_pressed_esc = True
+            is_clicked = True
+        elif was_pressed_esc and pygame.key.get_pressed()[pygame.K_ESCAPE]:
+            was_pressed_esc = True
+            is_clicked = False
+        else:
+            was_pressed_esc = False
+            is_clicked = False
+        blit(lang['new_game'], font_96, (640, 10), True)
+        blit(lang['game_name'], font_72, (20, 80))
+        blit(lang['player_amount'], font_72, (20, 150))
+        blit(lang['score_limit_desc'], font_72, (20, 220))
         error_messages = []
         if players < 2:
-            error_messages.append('There must be at least two players')
+            error_messages.append(lang['err_not_enough_players'])
         if players > 18:
-            error_messages.append('Currently you cannot have more than 18 players')
+            error_messages.append(lang['err_too_many_players'])
         if score_limit <= 0:
-            error_messages.append('Score limit must be positive')
+            error_messages.append(lang['err_negative_limit'])
         if error_messages:
             j = 0
             for i in error_messages:
@@ -582,7 +675,7 @@ class game:
         if temp is not False:
             score_limit = temp
             game_config['score_limit'] = temp
-        if self.go_menu.smart_draw(self.surface):
+        if self.go_menu.smart_draw(self.surface) or is_clicked:
             current_ui = 'menu'
         if self.set_player_names.smart_draw(72) and players <= 18:
             for i in range(players):
@@ -591,7 +684,7 @@ class game:
                 names[players-1]
                 game_config['names'][players-1]
             except:
-                names = ['player'] * players
+                names = ['Player'] * players
                 game_config['names'] = ['player'] * players
             current_ui = 'player_setup'
         if self.start_no_file.smart_draw(72) and not error_messages:
@@ -629,9 +722,9 @@ class game:
                 except:
                     draw_rect(410, 270, 870, 450)
                     draw_rect(410, 270, 870, 300, color_bg)
-                    blit('No file specified', font_28, (640, 270), True)
-                    blit("You didn't choose a file, which means that", font_40, (640, 300), True)
-                    blit("nothing will be saved. Continue?", font_40, (640, 330), True)
+                    blit(lang['warn_no_file_title'], font_28, (640, 270), True)
+                    blit(lang['warn_no_file_line1'], font_40, (640, 300), True)
+                    blit(lang['warn_no_file_line2'], font_40, (640, 330), True)
                     while True:
                         if self.no_file.smart_draw(60, None, (168, 30, 30), (220, 45, 45), (128, 15, 15)):
                             break
@@ -655,6 +748,7 @@ class game:
         global current_ui
         global visible_scores
         global is_updating
+        global was_pressed_esc
         if not pygame.key.get_pressed()[pygame.K_LEFT] and not pygame.key.get_pressed()[pygame.K_RIGHT]:
             was_pressed = False
         # draw the stuff
@@ -670,32 +764,32 @@ class game:
             pass
         if show_progress:
             if eval(goals[first]) != 0:
-                goal_first = str(eval(goals[first]) - victories[first]) + ' left (' + str(round(victories[first] / eval(goals[first]) * 100, 1)) + '%)'
+                goal_first = str(eval(goals[first]) - victories[first]) + lang['goal_left_ext'] + str(round(victories[first] / eval(goals[first]) * 100, 1)) + '%)'
             else:
-                goal_first = f'{str(eval(goals[first]) - victories[first])} left'
+                goal_first = f'{str(eval(goals[first]) - victories[first])}{lang["goal_left"]}'
             try:
                 if eval(goals[second]) != 0:
-                    goal_second = str(eval(goals[second]) - victories[second]) + ' left (' + str(round(victories[second] / eval(goals[second]) * 100, 1)) + '%)'
+                    goal_second = str(eval(goals[second]) - victories[second]) + lang['goal_left_ext'] + str(round(victories[second] / eval(goals[second]) * 100, 1)) + '%)'
                 else:
-                    goal_second = f'{str(eval(goals[second]) - victories[second])} left'
+                    goal_second = f'{str(eval(goals[second]) - victories[second])}{lang["goal_left"]}'
                 if eval(goals[third]) != 0:
-                    goal_third = str(eval(goals[third]) - victories[third]) + ' left (' + str(round(victories[third] / eval(goals[third]) * 100, 1)) + '%)'
+                    goal_third = str(eval(goals[third]) - victories[third]) + lang['goal_left_ext'] + str(round(victories[third] / eval(goals[third]) * 100, 1)) + '%)'
                 else:
-                    goal_third = f'{str(eval(goals[first]) - victories[first])} left'
+                    goal_third = f'{str(eval(goals[first]) - victories[first])}{lang["goal_left"]}'
             except:
                 pass
         else:
             if eval(goals[first]) != '0':
-                goal_first = str(eval(goals[third]) - victories[third]) + ' left'
+                goal_first = str(eval(goals[third]) - victories[third]) + lang["goal_left"]
             else:
                 goal_first = '0'
             try:
                 if eval(goals[second]) != '0':
-                    goal_second = str(eval(goals[second]) - victories[second]) + ' left'
+                    goal_second = str(eval(goals[second]) - victories[second]) + lang["goal_left"]
                 else:
                     goal_second = '0'
                 if eval(goals[third]) != '0':
-                    goal_third = str(eval(goals[third]) - victories[third]) + ' left'
+                    goal_third = str(eval(goals[third]) - victories[third]) + lang["goal_left"]
                 else:
                     goal_third = '0'
             except:
@@ -755,8 +849,8 @@ class game:
 
         draw_text_box(str(score_limit), font_info, (1175, 610), self.surface)
         draw_text_box(game_name, font_info, (970, 660), self.surface)
-        blit('Score limit:', font_40, (1077, 618))
-        blit('Game name:', font_40, (970, 622), False, (255, 255, 255))
+        blit(lang['ui_score_limit'], font_40, (1170, 618), 'back')
+        blit(lang['ui_game_name'], font_40, (970, 622), False, (255, 255, 255))
 
         # draw the log
         # draw the outline
@@ -765,8 +859,8 @@ class game:
         pygame.draw.rect(self.surface, (255, 255, 255), (1073, 570, 205, 40), 0, 8, 0, 0, 8, 8)
         pygame.draw.rect(self.surface, color_info_outline, (1073, 10, 205, 600), 3, 8)
         # draw the info
-        blit('Game log', font_log, (1175, 20), True, color_log_index)
-        blit(f'Entries: {len(log)}', font_log, (1175, 577), True, color_log_index)
+        blit(lang['ui_log'], font_log, (1175, 20), True, color_log_index)
+        blit(lang['log_len'].format(number=len(log)), font_log, (1175, 577), True, color_log_index)
         # draw the entries
         for i in range(min(len(log) - log_cursor, 10)):
             blit(str(i + 1 + log_cursor), font_log, (1079, 65 + 50*i), False, color_log_index)
@@ -793,12 +887,17 @@ class game:
             if player_page > max_page:
                 player_page = 0
             was_pressed = True
-        if pygame.key.get_pressed()[pygame.K_ESCAPE]:
+        if not was_pressed_esc and pygame.key.get_pressed()[pygame.K_ESCAPE]:
+            was_pressed_esc = True
             ui_settings.blink_time.text = str(blink_time)
             ui_settings.game_name.text = game_name
             ui_settings.score_lim.text = str(score_limit)
             is_updating = False
             current_ui = 'pause'
+        elif was_pressed_esc and pygame.key.get_pressed()[pygame.K_ESCAPE]:
+            was_pressed_esc = True
+        else:
+            was_pressed_esc = False
 
     def process_commands(self):
         # gather input
@@ -824,7 +923,7 @@ class game:
         process = False
         valid = True
         if not command:
-            message = '§fEnter the command here:'
+            message = lang['enter_command']
         if pygame.event.get(pygame.MOUSEBUTTONDOWN):
             if is_updating:
                 is_updating = False
@@ -969,7 +1068,7 @@ class game:
                                     visible[3] = '§4' + visible[3]
                                     valid = False
                         elif args[2] == 'relative':
-                            message = '§fgoal §b<player: int> §frelative §6<player: int|most|least> [§a<operation: +|-|/|*> §d<value: float>]'
+                            message = '§fgoal §b<player: int> §frelative §6<player: int|most|least> §a[<operation: +|-|/|*> §d<value: float>]'
                             if len(args) > 3:
                                 try:
                                     int(args[3])
@@ -1150,14 +1249,14 @@ class game:
                                     game_events.add_event(True, 'increase_player', max_fps, i, int(args[i + 3]) / max_fps)
                                     log.append(f'P{i+1}+{int(args[i+3])}')
                                     log_cursor = max(0, len(log) - 10)
-                            game_events.add_event(False, 'score_change', max_fps)
+                            game_events.add_event(False, 'score_change', max_fps + 10)
                         else:
                             scores[int(args[2]) - 1] += int(args[3])
                             game_events.add_event(True, 'increase_player', max_fps, int(args[2]) - 1, int(args[3]) / max_fps)
-                            game_events.add_event(False, 'score_change', max_fps)
+                            game_events.add_event(False, 'score_change', max_fps + 10)
                             log.append(f'P{int(args[2])}+{int(args[3])}')
                             log_cursor = max(0, len(log) - 10)
-                            narrate(f'Added {args[3]} points to {names[int(args[2]) - 1]}')
+                            narrate(lang['narrator_add_points'].format(amount=args[3],player=names[int(args[2]) - 1]))
                     elif args[1] == 'remove': ## REMOVE ARGUMENT
                         if args[2] == 'all':
                             try:
@@ -1174,39 +1273,39 @@ class game:
                                     game_events.add_event(True, 'increase_player', max_fps, i, -int(args[i + 3]) / max_fps)
                                     log.append(f'P{i+1}-{int(args[i+3])}')
                                     log_cursor = max(0, len(log) - 10)
-                            game_events.add_event(False, 'score_change', max_fps)
+                            game_events.add_event(False, 'score_change', max_fps + 10)
                         else:
                             scores[int(args[2]) - 1] -= int(args[3])
                             game_events.add_event(True, 'increase_player', max_fps, int(args[2]) - 1, -int(args[3]) / max_fps)
-                            game_events.add_event(False, 'score_change', max_fps)
+                            game_events.add_event(False, 'score_change', max_fps + 10)
                             log.append(f'P{int(args[2])}-{int(args[3])}')
                             log_cursor = max(0, len(log) - 10)
-                            narrate(f'Taken {args[3]} points from {names[int(args[2]) - 1]}')
+                            narrate(lang['narrator_take_points'].format(amount=args[3],player=names[int(args[2]) - 1]))
                     elif args[1] == 'set': ## SET ARGUMENT
                         scores[int(args[2]) - 1] = int(args[3]) # won't be smooth
-                        game_events.add_event(False, 'score_change', max_fps)
+                        game_events.add_event(False, 'score_change', max_fps + 10)
                         log.append(f'P{int(args[2])}={int(args[3])}')
                         log_cursor = max(0, len(log) - 10)
-                        narrate(f"Set {names[int(args[2]) - 1]}'s score to {args[3]}")
+                        narrate(lang['narrator_set_points'].format(amount=args[3],player=names[int(args[2]) - 1]))
                     elif args[1] == 'limit': ## LIMIT ARGUMENT
                         if args[2] == 'set':
                             score_limit = int(args[3])
                             log.append(f'SL={int(args[3])}')
                             log_cursor = max(0, len(log) - 10)
-                            narrate(f'Set the score limit to {args[3]}')
+                            narrate(lang['narrator_set_limit'].format(value=args[3]))
                         elif args[2] == 'mode':
                             if args[3] == 'least':
                                 inverted_victory_mode = False
                                 log.append('LM=LEAST')
                                 log_cursor = max(0, len(log) - 10)
-                                narrate(f'The player with the lowest score now wins')
+                                narrate(lang['narrator_limit_mode_least'])
                             else:
                                 inverted_victory_mode = True
                                 log.append('LM=MOST')
                                 log_cursor = max(0, len(log) - 10)
-                                narrate(f'The player with the highest score now wins')
+                                narrate(lang['narrator_limit_mode_most'])
                 else:
-                    print(f'Incomplete command: {command}')
+                    print(lang['err_incomplete_command'].format(command=command))
             elif args[0] == 'double': ## DOUBLE COMMAND
                 if len(args) > 2:
                     if args[1] == '0':
@@ -1214,7 +1313,7 @@ class game:
                         log_cursor = max(0, len(log) - 10)
                         victories[int(args[2]) - 1] += 1
                         game_events.add_event(True, 'blink', max_fps*blink_time - max_fps//2, int(args[2]) - 1, 2)
-                        narrate(f'{names[int(args[2]) - 1]} ended with 0 0 and won')
+                        narrate(lang['narrator_end_0'].format(name=names[int(args[2]) - 1]))
                     elif args[1] == '6':
                         log.append(f'{int(args[2])}E6')
                         log_cursor = max(0, len(log) - 10)
@@ -1223,30 +1322,30 @@ class game:
                                 scores[i] += 50
                                 game_events.add_event(True, 'increase_player', max_fps, i, 50 / max_fps)
                                 game_events.add_event(True, 'blink', max_fps*blink_time - max_fps//2, i, 1)
-                        narrate(f'{names[int(args[2]) - 1]} ended with 6 6, so everyone else gets 50 points')
-                        game_events.add_event(False, 'score_change', max_fps)
+                        narrate(lang['narrator_end_6'].format(name=names[int(args[2]) - 1]))
+                        game_events.add_event(False, 'score_change', max_fps + 10)
                 else:
-                    print(f'Incomplete command: {command}')
+                    print(lang['err_incomplete_command'].format(command=command))
             elif args[0] == 'rename':
                 try:
                     if args[1] == 'game':
                         game_name = command[12:]
                         log.append(f'GN={args[2]}')
                         log_cursor = max(0, len(log) - 10)
-                        narrate(f'Renamed the game to "{command[12:]}"')
+                        narrate(lang['narrator_rename_game'].format(new_name=command[12:]))
                     else:
                         if players < 10:
                             names[int(args[1]) - 1] = command[9:]
                             log.append(f'P{int(args[1])}N={command[9:]}')
                             log_cursor = max(0, len(log) - 10)
-                            narrate(f'Player {args[1]} now wants themselves to be called {command[9:]}')
+                            narrate(lang['narrator_player_rename'].format(player=args[1], new_name=command[9:]))
                         else:
                             names[int(args[1]) - 1] = command[10:]
                             log.append(f'P{int(args[1])}N={command[10:]}')
                             log_cursor = max(0, len(log) - 10)
-                            narrate(f'Player {args[1]} now wants themselves to be called {command[10:]}')
+                            narrate(lang['narrator_player_rename'].format(player=args[1], new_name=command[9:]))
                 except:
-                    print(f'Incomplete command: {command}')
+                    print(lang['err_incomplete_command'].format(command=command))
             elif args[0] == 'menu':
                 if game_conf_file and len(command) < 6: # if there's a save file and no_save wasn't specified:
                     game_config['log'] = log
@@ -1268,14 +1367,14 @@ class game:
                             game_conf_file = command[9:]
                             log.append(f'F={game_conf_file}')
                             log_cursor = max(0, len(log) - 10)
-                            narrate(f'Set the save file to {game_conf_file}')
+                            narrate(lang['narrator_set_save'].format(new_file=game_conf_file))
                         else:
                             temp = filedialog.asksaveasfilename(defaultextension = '.json', filetypes = [('JSON files', '*.json'), ('All files', '*.*')], title = 'Save game data')
                             if temp:
                                 game_conf_file = temp
                                 log.append(f'F={game_conf_file}')
                                 log_cursor = max(0, len(log) - 10)
-                                narrate(f'Set the save file to {game_conf_file}')
+                                narrate(lang['narrator_set_save'].format(new_file=game_conf_file))
                     if args[1] == 'save':
                         game_config['log'] = log
                         game_config['goals'] = goals
@@ -1288,7 +1387,7 @@ class game:
                         game_config['limit_mode'] = inverted_victory_mode
                         with open(game_conf_file, 'w') as config_file:
                             config_file.write(json.dumps(game_config, indent=4, ensure_ascii=True))
-                        narrate('Saved the game')
+                        narrate(lang['narrator_save_game'])
                     if args[1] == 'reload':
                         try:
                             with open(game_conf_file, 'r', -1, 'utf-8') as file:
@@ -1319,67 +1418,71 @@ class game:
                         else:
                             max_page = players // 3 - 1
                         field_colors = [0] * players
-                        narrate(f'Reloaded the save file')
+                        narrate(lang['narrator_reload_save'])
             elif args[0] == 'help':
                 print(command_help)
-                narrate(f'Help was printed to console')
+                narrate(lang['narrator_help_printed'])
             elif args[0] == 'log':
                 if len(args) > 2:
                     if args[1] == 'add':
                         log.append(command[8:])
                         log_cursor = max(0, len(log) - 10)
-                        narrate(f'Added "{command[8:]}" to the log')
+                        narrate(lang['narrator_add_log'].format(entry=command[8:]))
                     elif args[1] == 'remove':
                         if len(args) > 3:
                             del log[int(args[2])-1 : int(args[3])]
-                            narrate(f'Removed elements from {args[2]} to {args[3]} from the log')
+                            narrate(lang['narrator_remove_log_range'].format(start=args[2], finish=args[3]))
                         else:
                             del log[int(args[2]) - 1]
-                            narrate(f'Removed element {args[2]} from the log')
+                            narrate(lang['narrator_remove_log_single'].format(number=args[2]))
                 else:
-                    print(f'Incomplete command: {command}')
+                    print(lang['err_incomplete_command'].format(command=command))
             elif args[0] == 'goal':
                 if len(args) > 3:
                     if args[2] == 'fixed':
                         goals[int(args[1]) - 1] = args[3]
                         log.append(f'{args[1]}G={args[3]}')
                         log_cursor = max(0, len(log) - 10)
-                        narrate(f'{names[int(args[1]) - 1]} set their victory goal to {args[3]}')
+                        narrate(lang['narrator_set_fixed_goal'].format(player=names[int(args[1]) - 1], goal=args[3]))
                     elif args[2] == 'relative':
                         if len(args) > 3:
                             if args[3] == 'most':
                                 goals[int(args[1]) - 1] = 'max(victories)'
-                                player_desc = 'those of the player with the most victories'
                             elif args[3] == 'least':
                                 goals[int(args[1]) - 1] = 'min(victories)'
-                                player_desc = 'those count of the player with the least victories'
                             else:
                                 goals[int(args[1]) - 1] = f'victories[{int(args[3]) - 1}]'
-                                player_desc = f"{names[int(args[3]) - 1]}'s victory count"
                         if len(args) > 5:
                             goals[int(args[1]) - 1] = 'int(' + goals[int(args[1]) - 1] + args[4] + args[5] + ')'
                             if args[3] in ['least', 'most']:
                                 log.append(f'{args[1]}G=[{args[3].upper()}]{args[4]}{args[5]}')
                             else:
                                 log.append(f'{args[1]}G=[{args[3].upper()}]{args[4]}{args[5]}')
-                            narrate(f"{names[int(args[1]) - 1]} set their victory goal to {player_desc} {self.operator_desc[args[4]]} {args[5]}")
-                        else:
-                            if args[3] in ['least', 'most']:
-                                log.append(f'{args[1]}G=[{args[3].upper()}]')
+                            if args[3] == 'least':
+                                narrate(lang['narrator_set_goal_relative_lowest'].format(player=names[int(args[1]) - 1], operation=self.operator_desc[args[4]], value=args[5]))
+                            elif args[3] == 'most':
+                                narrate(lang['narrator_set_goal_relative_highest'].format(player=names[int(args[1]) - 1], operation=self.operator_desc[args[4]], value=args[5]))
                             else:
-                                log.append(f'{args[1]}G=[{args[3].upper()}]')
-                            narrate(f"{names[int(args[1]) - 1]} set their victory goal to {player_desc}")
+                                narrate(lang['narrator_set_goal_relative_player'].format(player=names[int(args[1]) - 1], target=names[int(args[3]) - 1], operation=self.operator_desc[args[4]], value=args[5]))
+                        else:
+                            log.append(f'{args[1]}G=[{args[3].upper()}]')
+                            if args[3] == 'least':
+                                narrate(lang['narrator_set_goal_lowest'].format(player=names[int(args[1]) - 1]))
+                            elif args[3] == 'most':
+                                narrate(lang['narrator_set_goal_highest'].format(player=names[int(args[1]) - 1]))
+                            else:
+                                narrate(lang['narrator_set_goal_player'].format(player=names[int(args[1]) - 1], target=names[int(args[3]) - 1]))
                         log_cursor = max(0, len(log) - 10)
                 else:
-                    print(f'Incomplete command: {command}')
+                    print(lang['err_incomplete_command'].format(command=command))
             elif args[0] == 'victory':
                 if len(args) > 2:
                     victories[int(args[1]) - 1] = int(args[2])
                     log.append(f'{args[1]}V={args[2]}')
                     log_cursor = max(0, len(log) - 10)
-                    narrate(f"Set {names[int(args[1]) - 1]}'s victory count to {args[2]}")
+                    narrate(lang['narrator_set_victory'].format(player=names[int(args[1]) - 1], value=args[2]))
                 else:
-                    print(f'Incomplete command: {command}')
+                    print(lang['err_incomplete_command'].format(command=command))
             command = ''
             self.command_line.text = ''
             is_updating = False
@@ -1403,6 +1506,7 @@ while True:
             game_config['limit_mode'] = inverted_victory_mode
             with open(game_conf_file, 'w') as config_file:
                 config_file.write(json.dumps(game_config, indent=4, ensure_ascii=True))
+        global_config.save()
         pygame.quit()
         exit(0)
     changing_score = False
@@ -1442,9 +1546,10 @@ while True:
                     for m in range(len(winners) - 1):
                         win_final_names += f'{win_names[m]}, '
                     win_final_names += f' and {win_names[-1]}'
+                    narrate(lang['narrator_victory_multiple'].format(players=win_final_names, score=j))
                 else:
                     win_final_names = win_names[0]
-                narrate(f'{win_final_names} won at {j} points')
+                    narrate(lang['narrator_victory_single'].format(player=win_final_names, score=j))
         if i['name'] == 'clear_score':
             scores = [0] * players
     if not changing_score:

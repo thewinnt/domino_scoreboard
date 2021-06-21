@@ -126,6 +126,7 @@ dmypy.json
 
 # Development files
 dev_assets/
+.vscode/
 
-# Config files
-*.json
+# Config file
+config_global.json

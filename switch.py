@@ -15,6 +15,8 @@ class switch():
         self.enable_color = enable_color
         self.disable_color = disable_color
 
+        self.was_pressed = False
+
     def draw(self, active, bkp_pos=None, is_over=False):
         '''Simply draw the switch'''
         if bkp_pos == None:
@@ -47,4 +49,13 @@ class switch():
     def smart_draw(self, active, bkp_pos=None) -> bool:
         '''Draws the switch and returns if it's been clicked at recently'''
         self.draw(active, bkp_pos, self.is_over(bkp_pos))
-        return self.is_over(bkp_pos) and bool(pygame.event.get(pygame.MOUSEBUTTONDOWN))
+        if not self.was_pressed and pygame.mouse.get_pressed()[0]:
+            self.was_pressed = True
+            is_clicked = True
+        elif self.was_pressed and pygame.mouse.get_pressed()[0]:
+            self.was_pressed = True
+            is_clicked = False
+        else:
+            self.was_pressed = False
+            is_clicked = False
+        return self.is_over(bkp_pos) and is_clicked

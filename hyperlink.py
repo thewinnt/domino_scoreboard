@@ -6,6 +6,7 @@ class hyperlink:
         self.x = x
         self.y = y
         self.text = text
+        self.was_pressed = False
 
     def draw(self,surface,font_size=60):
         '''Simply draws the link'''
@@ -27,4 +28,13 @@ class hyperlink:
     def smart_draw(self, surface, font_size = 60, bkp_pos = None) -> bool:
         '''Draws the link and returns its click state'''
         self.draw(surface, font_size)
-        return self.is_over(bkp_pos) and pygame.event.get(pygame.MOUSEBUTTONDOWN)
+        if not self.was_pressed and pygame.mouse.get_pressed()[0]:
+            self.was_pressed = True
+            is_clicked = True
+        elif self.was_pressed and pygame.mouse.get_pressed()[0]:
+            self.was_pressed = True
+            is_clicked = False
+        else:
+            self.was_pressed = False
+            is_clicked = False
+        return self.is_over(bkp_pos) and is_clicked

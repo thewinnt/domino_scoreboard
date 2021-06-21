@@ -45,7 +45,6 @@ class button():
             self.color = hover_color
             if pygame.mouse.get_pressed()[0]:
                 self.color = click_color
-                pygame.event.clear()
                 to_return = True
         if not self.isOver(bkp_pos) and not pygame.mouse.get_pressed()[0]:
             self.color = default_color

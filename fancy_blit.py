@@ -26,9 +26,12 @@ def fancy_blit(text, font, pos, surface, default_color=(0, 0, 0), background_col
         try:
             if i == '' and not len(text):
                 continue
-            if not i[0] in '0123456789abcdef' or (text[0] != '§' and not counter):
+            if not i[0] in '0123456789abcdefr' or (text[0] != '§' and not counter):
                 raise SyntaxError(f'invalid format code: §{i[0]}')
-            rendered_parts.append(font.render(i[1:], 4, COLOR_INDEX[i[0]], background_color))
+            if i[0] == 'r':
+                rendered_parts.append(font.render(i[1:], 4, default_color, background_color))
+            else:
+                rendered_parts.append(font.render(i[1:], 4, COLOR_INDEX[i[0]], background_color))
         except:
             if counter:
                 rendered_parts.append(font.render('§' + i, 4, default_color, background_color))
