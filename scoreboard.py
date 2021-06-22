@@ -86,8 +86,8 @@ game_events = event_handler.EventHandler()
 icon = pygame.image.load("assets/window.png")
 pygame.display.set_icon(icon)
 window = pygame.display.set_mode((1280, 720))
-pygame.display.set_caption(f"{lang['program_name']} (v. 1.0 release candidate 1)")
-game_version = "v. 1.0-rc1"
+pygame.display.set_caption(f"{lang['program_name']} (v. 1.0 release candidate 2)")
+game_version = "v. 1.0-rc2"
 
 font_28 = pygame.font.Font('assets/denhome.otf', 28)
 font_40 = pygame.font.Font('assets/denhome.otf', 40)
@@ -465,8 +465,13 @@ class settings:
             global_config.set('progress', show_progress)
         temp_blink_time = self.blink_time.draw()
         if temp_blink_time is not False:
-            blink_time = temp_blink_time
-            global_config.set('blink_time', temp_blink_time)
+            if temp_blink_time >= 0:
+                blink_time = temp_blink_time
+                global_config.set('blink_time', temp_blink_time)
+            else:
+                blink_time = 0
+                self.blink_time.text = '0'
+                global_config.set('blink_time', 0)
         if is_game_running:
             self._draw_game()
         temp = self.language.update()
@@ -528,7 +533,11 @@ class settings:
             game_name = temp
         temp = self.score_lim.draw()
         if temp is not False:
-            score_limit = temp
+            if temp > 0:
+                score_limit = temp
+            else:
+                score_limit = 1
+                self.score_lim.text = '1'
         if self.score_mode.smart_draw(inverted_victory_mode):
             inverted_victory_mode = not inverted_victory_mode
         if self.filename.smart_draw():
@@ -1201,7 +1210,7 @@ class game:
                             except:
                                 success = False
                             else:
-                                success = True
+                                success = int(args[3]) > 0
                             if success:
                                 visible[3] = '§3' + visible[3] + '§7'
                             else:
@@ -1253,7 +1262,7 @@ class game:
                         else:
                             scores[int(args[2]) - 1] += int(args[3])
                             game_events.add_event(True, 'increase_player', max_fps, int(args[2]) - 1, int(args[3]) / max_fps)
-                            game_events.add_event(False, 'score_change', max_fps + 10)
+                            game_events.add_event(False, 'score_change', max_fps*5)
                             log.append(f'P{int(args[2])}+{int(args[3])}')
                             log_cursor = max(0, len(log) - 10)
                             narrate(lang['narrator_add_points'].format(amount=args[3],player=names[int(args[2]) - 1]))
@@ -1277,13 +1286,13 @@ class game:
                         else:
                             scores[int(args[2]) - 1] -= int(args[3])
                             game_events.add_event(True, 'increase_player', max_fps, int(args[2]) - 1, -int(args[3]) / max_fps)
-                            game_events.add_event(False, 'score_change', max_fps + 10)
+                            game_events.add_event(False, 'score_change', max_fps*5)
                             log.append(f'P{int(args[2])}-{int(args[3])}')
                             log_cursor = max(0, len(log) - 10)
                             narrate(lang['narrator_take_points'].format(amount=args[3],player=names[int(args[2]) - 1]))
                     elif args[1] == 'set': ## SET ARGUMENT
                         scores[int(args[2]) - 1] = int(args[3]) # won't be smooth
-                        game_events.add_event(False, 'score_change', max_fps + 10)
+                        game_events.add_event(False, 'score_change', max_fps*4)
                         log.append(f'P{int(args[2])}={int(args[3])}')
                         log_cursor = max(0, len(log) - 10)
                         narrate(lang['narrator_set_points'].format(amount=args[3],player=names[int(args[2]) - 1]))
@@ -1312,7 +1321,7 @@ class game:
                         log.append(f'{int(args[2])}E0')
                         log_cursor = max(0, len(log) - 10)
                         victories[int(args[2]) - 1] += 1
-                        game_events.add_event(True, 'blink', max_fps*blink_time - max_fps//2, int(args[2]) - 1, 2)
+                        game_events.add_event(True, 'blink', max_fps*blink_time - max_fps//2 + 1, int(args[2]) - 1, 2)
                         narrate(lang['narrator_end_0'].format(name=names[int(args[2]) - 1]))
                     elif args[1] == '6':
                         log.append(f'{int(args[2])}E6')
@@ -1321,9 +1330,9 @@ class game:
                             if i != int(args[2]) - 1:
                                 scores[i] += 50
                                 game_events.add_event(True, 'increase_player', max_fps, i, 50 / max_fps)
-                                game_events.add_event(True, 'blink', max_fps*blink_time - max_fps//2, i, 1)
+                                game_events.add_event(True, 'blink', max_fps*blink_time - max_fps//2 + 1, i, 1)
                         narrate(lang['narrator_end_6'].format(name=names[int(args[2]) - 1]))
-                        game_events.add_event(False, 'score_change', max_fps + 10)
+                        game_events.add_event(False, 'score_change', max_fps*6.5)
                 else:
                     print(lang['err_incomplete_command'].format(command=command))
             elif args[0] == 'rename':
@@ -1514,7 +1523,7 @@ while True:
         if i['name'] == 'increase_player': # arg1 is the player, arg2 is the score
             visible_scores[i['arg1']] += i['arg2']
             changing_score = True
-        if i['name'] == 'blink': # arg1 is the player, arg2 is the color
+        if i['name'] == 'blink' and blink_time > 0: # arg1 is the player, arg2 is the color
             if not i['time_left'] % max_fps:
                 field_colors[i['arg1']] = 0
             elif i['time_left'] % max_fps == max_fps // 2:
