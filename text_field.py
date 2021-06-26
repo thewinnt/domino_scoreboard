@@ -7,7 +7,7 @@ except ModuleNotFoundError:
 else:
     ALLOW_FANCY_FORMAT = True # is this allowed?
 
-class text_field:
+class TextField:
     def __init__(self, x, y, width, height, text, font, surface, type_='string', outline_color_active=(0, 0, 0), outline_color_inactive=(50, 50, 50), field_color=(240, 240, 240)):
         '''A text field class that can automatically draw and update itself'''
         self.width = width
@@ -34,7 +34,7 @@ class text_field:
         self.was_clicked = False
         self.enter = False # if the typing was stopped by pressing Enter
 
-    def is_over(self, bkp_pos = None) -> bool:
+    def is_over(self, bkp_pos=None) -> bool:
         '''Returns true if mouse is over'''
         if bkp_pos == None:
             self.pos = pygame.mouse.get_pos()
@@ -109,7 +109,7 @@ class text_field:
                     self.was_clicked = True
         return self.text
 
-    def draw(self, update=True, text_color=(0, 0, 0), fancy_format=True) -> str:
+    def draw(self, update=True, text_color=(0, 0, 0), bkp_pos=None, fancy_format=True) -> str:
         '''Usage: 'temp = field_name.draw(...); if temp is not False: target = temp' where target is the string you want to get as user input'''
         self.was_clicked = pygame.mouse.get_pressed()[0]
         if self.active and update:
@@ -133,7 +133,7 @@ class text_field:
         if update and self.was_clicked:
             self.was_clicked = False
             temp = self.active
-            self.active = self.is_over()
+            self.active = self.is_over(bkp_pos)
             if self.active and not temp:
                 pygame.event.get()
             if temp == self.active or self.active:
@@ -142,9 +142,17 @@ class text_field:
                 if self.type == 'string':
                     return self.text
                 elif self.type == 'float':
-                    return float(self.text)
+                    if self.text:
+                        return float(self.text)
+                    else:
+                        self.text = '0'
+                        return 0.0
                 elif self.type == 'int':
-                    return int(self.text)
+                    if self.text:
+                        return int(self.text)
+                    else:
+                        self.text = '0'
+                        return 0
                 else:
                     raise SyntaxError(f"Invalid type of value to return: {self.type}, it must be either 'int', 'float' or 'string' (default)")
         else:

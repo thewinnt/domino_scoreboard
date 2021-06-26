@@ -1,5 +1,5 @@
 import pygame
-class button():
+class Button:
     def __init__(self, color,x,y,width,height, surface, text='', font=None):
         self.color = color
         self.x = x
@@ -38,7 +38,7 @@ class button():
         else:
             return False
 
-    def smart_draw(self, font_size = 60, bkp_pos = None, default_color=(0, 204, 204), hover_color=(0, 255, 255), click_color=(0, 102, 102), text_color=(0, 0, 0), outline_color=(0, 0, 0)) -> bool:
+    def smart_draw(self, font_size=60, bkp_pos=None, default_color=(0, 204, 204), hover_color=(0, 255, 255), click_color=(0, 102, 102), text_color=(0, 0, 0), outline_color=(0, 0, 0)) -> bool:
         '''Draws the button and returns its click state'''
         to_return = False
         if self.isOver(bkp_pos):

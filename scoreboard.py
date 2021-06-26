@@ -15,6 +15,7 @@ if __name__ == '__main__':
     import event_handler
     import multiprocessing
     from tkinter import filedialog
+    multiprocessing.set_start_method('spawn')
 
 global_config = config.config({}, 'config_global.json') # load the config file
 global_config.load('config_global.json')
@@ -24,7 +25,9 @@ global_config.get('progress', True)
 global_config.get('blink_time', 5) # for each setting we need, check if it's there and if it's not, set it to default value
 global_config.get('max_fps', 60)
 global_config.get('lang', 'en') # this is the only reason i moved this here
+global_config.get('image_scale', 1)
 lang_type = global_config.get('lang')
+scale = global_config.get('image_scale')
 
 try:
     with open(f'assets/lang/{lang_type}.json', 'r', -1, 'utf-8') as lang_file:
@@ -85,9 +88,10 @@ game_events = event_handler.EventHandler()
 
 icon = pygame.image.load("assets/window.png")
 pygame.display.set_icon(icon)
-window = pygame.display.set_mode((1280, 720))
-pygame.display.set_caption(f"{lang['program_name']} (v. 1.0 release candidate 2)")
-game_version = "v. 1.0-rc2"
+final_window = pygame.display.set_mode((int(1280 * scale), int(720 * scale)))
+window = pygame.Surface((1280, 720))
+pygame.display.set_caption(f"{lang['program_name']} (v. 1.0 release candidate 3)")
+game_version = "v. 1.0-rc3"
 
 font_28 = pygame.font.Font('assets/denhome.otf', 28)
 font_40 = pygame.font.Font('assets/denhome.otf', 40)
@@ -290,11 +294,11 @@ class menu:
     def __init__(self):
         self.surface = window
 
-        self.btn_new_file = button.button(color_board_outline, 490, 250, 300, 75, self.surface, lang['btn_new_file'])
-        self.btn_import = button.button(color_board_outline, 490, 335, 300, 75, self.surface, lang['btn_open'])
-        self.btn_settings = button.button(color_board_outline, 490, 420, 300, 75, self.surface, lang['btn_settings'])
+        self.btn_new_file = button.Button(color_board_outline, 490, 250, 300, 75, self.surface, lang['btn_new_file'])
+        self.btn_import = button.Button(color_board_outline, 490, 335, 300, 75, self.surface, lang['btn_open'])
+        self.btn_settings = button.Button(color_board_outline, 490, 420, 300, 75, self.surface, lang['btn_settings'])
 
-        self.btn_continue = button.button(color_board_outline, 490, 195, 300, 75, self.surface, lang['btn_continue'])
+        self.btn_continue = button.Button(color_board_outline, 490, 195, 300, 75, self.surface, lang['btn_continue'])
 
     def draw(self):
         global log
@@ -326,7 +330,7 @@ class menu:
             self.btn_new_file.y = 250
             self.btn_import.y = 335
             self.btn_settings.y = 420
-        if self.btn_import.smart_draw(72) and pygame.event.get(pygame.MOUSEBUTTONDOWN):
+        if self.btn_import.smart_draw(72, bkp_pos) and pygame.event.get(pygame.MOUSEBUTTONDOWN):
             game_conf_file = filedialog.askopenfilename(title='Load game', filetypes=[('Game file', '*.json'), ('All files', '*.*')])
             try:
                 with open(game_conf_file, 'r', -1, 'utf-8') as file:
@@ -361,12 +365,12 @@ class menu:
             visible_scores = scores.copy()
             is_game_running = True
             current_ui = 'game'
-        if self.btn_settings.smart_draw(72) and pygame.event.get(pygame.MOUSEBUTTONDOWN):
+        if self.btn_settings.smart_draw(72, bkp_pos) and pygame.event.get(pygame.MOUSEBUTTONDOWN):
             ui_settings.blink_time.text = str(blink_time)
             ui_settings.game_name.text = game_name
             ui_settings.score_lim.text = str(score_limit)
             current_ui = 'settings'
-        if self.btn_new_file.smart_draw(72) and pygame.event.get(pygame.MOUSEBUTTONDOWN):
+        if self.btn_new_file.smart_draw(72, bkp_pos) and pygame.event.get(pygame.MOUSEBUTTONDOWN):
             predefine_variables() # we don't want to reload the previous game
             ui_game.__init__() # that is needed too
             current_ui = 'setup'
@@ -378,29 +382,30 @@ class settings:
         self.surface = window
         # global settings
         if allow_tts:
-            self.voice_enabled = switch.switch(1180, 100, self.surface) ## note: a switch is 86x36 pixels
+            self.voice_enabled = switch.Switch(1180, 100, self.surface) ## note: a switch is 86x36 pixels
         else:
-            self.voice_enabled = switch.switch(1180, 100, self.surface, (102, 204, 204), outline_color=(127, 127, 127), disable_color=(206, 206, 206))
-        self.show_victories = switch.switch(1180, 150, self.surface)
-        self.show_goal_progress = switch.switch(1180, 200, self.surface)
-        self.blink_time = text_field.text_field(1070, 250, 200, 45, blink_time, font_50, self.surface, 'int')
+            self.voice_enabled = switch.Switch(1180, 100, self.surface, (102, 204, 204), outline_color=(127, 127, 127), disable_color=(206, 206, 206))
+        self.show_victories = switch.Switch(1180, 150, self.surface)
+        self.show_goal_progress = switch.Switch(1180, 200, self.surface)
+        self.blink_time = text_field.TextField(1070, 250, 200, 45, blink_time, font_50, self.surface, 'int')
         self.language = dropdown_list.DropdownList(available_lang_names, available_lang_ids.index(lang_type), (1270, 300), font_50, self.surface, 200,
                                                    False, 6, color_board_outline, (0, 232, 232), color_scroll=(0, 63, 63),
                                                    color_hover_base=(0, 240, 240), color_hover_origin=color_bg,
                                                    color_hover_scroll=(0, 0, 0))
+        self.scale = text_field.TextField(1070, 355, 200, 45, str(scale), font_50, self.surface, 'float')
         # game settings
-        self.game_name = text_field.text_field(1070, 400, 200, 45, game_name, font_50, self.surface)
-        self.score_lim = text_field.text_field(1070, 450, 200, 45, score_limit, font_50, self.surface, 'int')
-        self.score_mode = switch.switch(1180, 500, self.surface)
-        self.filename = button.button(color_board_outline, 1120, 550, 150, 40, self.surface, lang['btn_change_file'])
-        self.goto_player_name = button.button(color_board_outline, 20, 600, 320, 65, self.surface, lang['btn_edit_player_names'])
-        self.go_menu = button.button(color_board_outline, 350, 600, 320, 65, self.surface, lang['btn_menu'])
+        self.game_name = text_field.TextField(1070, 450, 200, 45, game_name, font_50, self.surface)
+        self.score_lim = text_field.TextField(1070, 500, 200, 45, score_limit, font_50, self.surface, 'int')
+        self.score_mode = switch.Switch(1180, 550, self.surface)
+        self.filename = button.Button(color_board_outline, 1120, 600, 150, 40, self.surface, lang['btn_change_file'])
+        self.goto_player_name = button.Button(color_board_outline, 20, 650, 275, 60, self.surface, lang['btn_edit_player_names'])
+        self.go_menu = button.Button(color_board_outline, 305, 650, 275, 60, self.surface, lang['btn_menu'])
         # player names
         self.player_names = []
         for i in range(18):
-            self.player_names.append(text_field.text_field(20+415*(i%3) + 175, (i//3) * 100 + 100, 220, 50, '', font_50, self.surface))
+            self.player_names.append(text_field.TextField(20+415*(i%3) + 175, (i//3) * 100 + 100, 220, 50, '', font_50, self.surface))
         # utility stuff
-        self.go_back = hyperlink.hyperlink((0, 0, 0), 10, 0, lang['link_back'])
+        self.go_back = hyperlink.Hyperlink((0, 0, 0), 10, 0, lang['link_back'])
         ## note: everything in self is not the settings, but the tool used to change them
     
     def draw_global(self):
@@ -414,6 +419,8 @@ class settings:
         global was_pressed_esc
         global message
         global command_help
+        global scale
+        global final_window
         if not was_pressed_esc and pygame.key.get_pressed()[pygame.K_ESCAPE]:
             was_pressed_esc = True
             is_clicked = True
@@ -424,7 +431,7 @@ class settings:
             was_pressed_esc = False
             is_clicked = False
         self.surface.fill(color_bg)
-        if self.go_back.smart_draw(self.surface) or is_clicked:
+        if self.go_back.smart_draw(self.surface, bkp_pos=bkp_pos) or is_clicked:
             if current_ui == 'settings':
                 current_ui = 'menu'
             else:
@@ -442,28 +449,29 @@ class settings:
                 game_config['limit_mode'] = inverted_victory_mode
                 with open(game_conf_file, 'w', -1, 'utf-8') as file:
                     file.write(json.dumps(game_config, indent=4, ensure_ascii=False))
-        blit(lang['global_settings'], font_40, (20, 50), False, (100, 100, 100))
+        blit(lang['global_settings'], font_40, (20, 50), False, (100, 100, 100), self.surface)
         if allow_tts:
-            blit(lang['narrator'], font_72, (20, 80))
+            blit(lang['narrator'], font_72, (20, 80), surface=self.surface)
         else:
-            blit(lang['narrator'], font_72, (20, 80), False, (127, 127, 127))
-        blit(lang['show_player_victories'], font_72, (20, 130))
-        blit(lang['show_goal_progress'], font_72, (20, 180))
-        blit(lang['blink_time'], font_72, (20, 230))
-        blit(lang['language'], font_72, (20, 280))
+            blit(lang['narrator'], font_72, (20, 80), False, (127, 127, 127), self.surface)
+        blit(lang['show_player_victories'], font_72, (20, 130), surface=self.surface)
+        blit(lang['show_goal_progress'], font_72, (20, 180), surface=self.surface)
+        blit(lang['blink_time'], font_72, (20, 230), surface=self.surface)
+        blit(lang['language'], font_72, (20, 280), surface=self.surface)
+        blit(lang['image_scale'], font_72, (20, 335), surface=self.surface)
         if allow_tts:
-            if self.voice_enabled.smart_draw(global_config.get('voice')):
+            if self.voice_enabled.smart_draw(global_config.get('voice'), bkp_pos=bkp_pos):
                 voice = not voice
                 global_config.set('voice', voice)
         else:
             self.voice_enabled.draw(False, (0, 0))
-        if self.show_victories.smart_draw(global_config.get('victories')):
+        if self.show_victories.smart_draw(global_config.get('victories'), bkp_pos=bkp_pos):
             show_victories = not show_victories
             global_config.set('victories', show_victories)
-        if self.show_goal_progress.smart_draw(global_config.get('progress')):
+        if self.show_goal_progress.smart_draw(global_config.get('progress'), bkp_pos=bkp_pos):
             show_progress = not show_progress
             global_config.set('progress', show_progress)
-        temp_blink_time = self.blink_time.draw()
+        temp_blink_time = self.blink_time.draw(bkp_pos=bkp_pos)
         if temp_blink_time is not False:
             if temp_blink_time >= 0:
                 blink_time = temp_blink_time
@@ -474,7 +482,15 @@ class settings:
                 global_config.set('blink_time', 0)
         if is_game_running:
             self._draw_game()
-        temp = self.language.update()
+        temp = self.scale.draw(bkp_pos=bkp_pos)
+        if temp is not False:
+            if temp < 0.25:
+                temp = 0.25
+                self.scale.text = '0.25'
+            scale = temp
+            final_window = pygame.display.set_mode((int(1280 * scale), int(720 * scale)))
+            global_config.set('image_scale', scale)
+        temp = self.language.update(bkp_pos=bkp_pos)
         if temp is not None:
             lang_type = available_lang_ids[temp]
             lang = available_langs[temp]
@@ -502,19 +518,19 @@ class settings:
         global game_conf_file
         global inverted_victory_mode
         global is_game_running
-        blit(lang['game_settings'], font_40, (20, 350), False, (100, 100, 100))
-        blit(lang['game_name'], font_72, (20, 380))
-        blit(lang['score_limit'], font_72, (20, 430))
-        blit(lang['victory_mode'], font_72, (20, 480))
-        blit(lang['save_file'], font_72, (20, 530))
-        blit(lang['game_will_be_saved'], font_40, (680, 620), False, (85, 85, 85))
-        blit(game_conf_file, font_50, (1115, 545), 'back')
-        if self.goto_player_name.smart_draw(72):
+        blit(lang['game_settings'], font_40, (20, 400), False, (100, 100, 100), surface=self.surface)
+        blit(lang['game_name'], font_72, (20, 430), surface=self.surface)
+        blit(lang['score_limit'], font_72, (20, 480), surface=self.surface)
+        blit(lang['victory_mode'], font_72, (20, 530), surface=self.surface)
+        blit(lang['save_file'], font_72, (20, 580), surface=self.surface)
+        blit(lang['game_will_be_saved'], font_40, (590, 660), False, (85, 85, 85), surface=self.surface)
+        blit(game_conf_file, font_50, (1115, 595), 'back', surface=self.surface)
+        if self.goto_player_name.smart_draw(66, bkp_pos=bkp_pos):
             for i in range(players):
                 self.player_names[i].text = names[i]
             if current_ui == 'pause':
                 current_ui = 'player_edit'
-        if self.go_menu.smart_draw(72):
+        if self.go_menu.smart_draw(66, bkp_pos=bkp_pos):
             if game_conf_file:
                 game_config['log'] = log
                 game_config['goals'] = goals
@@ -528,19 +544,19 @@ class settings:
                 with open(game_conf_file, 'w') as config_file:
                     config_file.write(json.dumps(game_config, indent=4, ensure_ascii=True))
             current_ui = 'menu'
-        temp = self.game_name.draw()
+        temp = self.game_name.draw(bkp_pos=bkp_pos)
         if temp is not False:
             game_name = temp
-        temp = self.score_lim.draw()
+        temp = self.score_lim.draw(bkp_pos=bkp_pos)
         if temp is not False:
             if temp > 0:
                 score_limit = temp
             else:
                 score_limit = 1
                 self.score_lim.text = '1'
-        if self.score_mode.smart_draw(inverted_victory_mode):
+        if self.score_mode.smart_draw(inverted_victory_mode, bkp_pos=bkp_pos):
             inverted_victory_mode = not inverted_victory_mode
-        if self.filename.smart_draw():
+        if self.filename.smart_draw(bkp_pos=bkp_pos):
             temp = filedialog.asksaveasfilename(defaultextension = '.json', filetypes = [('JSON files', '*.json'), ('All files', '*.*')], title = 'Save game data')
             if temp != '':
                 game_conf_file = temp
@@ -559,12 +575,12 @@ class settings:
             is_clicked = False
         self.surface.fill(color_bg)
         for i in range(players):
-            blit(lang['player_name_desc'].format(num=i+1), font_72, (20+415*(i%3), (i//3) * 100 + 100))
+            blit(lang['player_name_desc'].format(num=i+1), font_72, (20+415*(i%3), (i//3) * 100 + 100), surface=self.surface)
             temp = self.player_names[i].draw()
             if temp is not False:
                 names[i] = temp
                 game_config['names'][i] = temp
-        if self.go_back.smart_draw(self.surface) or is_clicked:
+        if self.go_back.smart_draw(self.surface, bkp_pos=bkp_pos) or is_clicked:
             if current_ui == 'player_edit':
                 current_ui = 'pause'
             else:
@@ -577,20 +593,20 @@ class settings:
 class game:
     def __init__(self):
         self.surface = window
-        self.game_name = text_field.text_field(800, 90, 460, 65, game_name, font_72, self.surface)
-        self.player_count = text_field.text_field(800, 160, 460, 65, players, font_72, self.surface, 'int')
-        self.score_lim = text_field.text_field(800, 230, 460, 65, score_limit, font_72, self.surface, 'int')
-        self.set_player_names = button.button(color_board_outline, 20, 300, 400, 65, self.surface, lang['btn_set_player_names'])
-        self.start = button.button(color_board_outline, 950, 630, 310, 75, self.surface, lang['btn_save'])
-        self.go_menu = hyperlink.hyperlink((0, 0, 0), 10, 0, lang['link_menu'])
-        self.start_no_file = button.button(color_board_outline, 585, 630, 350, 75, self.surface, lang['btn_start_no_save'])
+        self.game_name = text_field.TextField(800, 90, 460, 65, game_name, font_72, self.surface)
+        self.player_count = text_field.TextField(800, 160, 460, 65, players, font_72, self.surface, 'int')
+        self.score_lim = text_field.TextField(800, 230, 460, 65, score_limit, font_72, self.surface, 'int')
+        self.set_player_names = button.Button(color_board_outline, 20, 300, 400, 65, self.surface, lang['btn_set_player_names'])
+        self.start = button.Button(color_board_outline, 950, 630, 310, 75, self.surface, lang['btn_save'])
+        self.go_menu = hyperlink.Hyperlink((0, 0, 0), 10, 0, lang['link_menu'])
+        self.start_no_file = button.Button(color_board_outline, 585, 630, 350, 75, self.surface, lang['btn_start_no_save'])
 
-        self.no_file = button.button((168, 0, 0), 425, 375, 200, 60, self.surface, lang['btn_continue'])
-        self.try_again = button.button(color_board_outline, 655, 375, 200, 60, self.surface, lang['btn_back'])
+        self.no_file = button.Button((168, 0, 0), 425, 375, 200, 60, self.surface, lang['btn_continue'])
+        self.try_again = button.Button(color_board_outline, 655, 375, 200, 60, self.surface, lang['btn_back'])
 
         self.color_index = [color_board_bg, color_red, color_green]
 
-        self.command_line = text_field.text_field(10, 660, 950, 50, command, font_cmd, self.surface)
+        self.command_line = text_field.TextField(10, 660, 950, 50, command, font_cmd, self.surface)
         self.cmd_desc = {'score': '§fscore <add|remove|set|limit> §b...',
                          'double': '§fdouble §b<0|6> §6<player: int>',
                          'rename': '§frename §b<player: int|game> §6<name: str>',
@@ -646,10 +662,10 @@ class game:
         else:
             was_pressed_esc = False
             is_clicked = False
-        blit(lang['new_game'], font_96, (640, 10), True)
-        blit(lang['game_name'], font_72, (20, 80))
-        blit(lang['player_amount'], font_72, (20, 150))
-        blit(lang['score_limit_desc'], font_72, (20, 220))
+        blit(lang['new_game'], font_96, (640, 10), True, surface=self.surface)
+        blit(lang['game_name'], font_72, (20, 80), surface=self.surface)
+        blit(lang['player_amount'], font_72, (20, 150), surface=self.surface)
+        blit(lang['score_limit_desc'], font_72, (20, 220), surface=self.surface)
         error_messages = []
         if players < 2:
             error_messages.append(lang['err_not_enough_players'])
@@ -660,13 +676,13 @@ class game:
         if error_messages:
             j = 0
             for i in error_messages:
-                blit(i, font_50, (20, j*50 + 370), False, (200, 0, 0))
+                blit(i, font_50, (20, j*50 + 370), False, (200, 0, 0), surface=self.surface)
                 j += 1
-        temp = self.game_name.draw(fancy_format=False)
+        temp = self.game_name.draw(fancy_format=False, bkp_pos=bkp_pos)
         if temp is not False:
             game_name = temp
             game_config['game_name'] = temp
-        temp = self.player_count.draw()
+        temp = self.player_count.draw(bkp_pos=bkp_pos)
         if temp is not False:
             players = temp
             if players % 3:
@@ -680,13 +696,13 @@ class game:
             except:
                 names = ['Player'] * players
                 game_config['names'] = ['player'] * players
-        temp = self.score_lim.draw()
+        temp = self.score_lim.draw(bkp_pos=bkp_pos)
         if temp is not False:
             score_limit = temp
             game_config['score_limit'] = temp
-        if self.go_menu.smart_draw(self.surface) or is_clicked:
+        if self.go_menu.smart_draw(self.surface, bkp_pos=bkp_pos) or is_clicked:
             current_ui = 'menu'
-        if self.set_player_names.smart_draw(72) and players <= 18:
+        if self.set_player_names.smart_draw(72, bkp_pos=bkp_pos) and players <= 18:
             for i in range(players):
                 ui_settings.player_names[i].text = names[i]
             try:
@@ -696,7 +712,7 @@ class game:
                 names = ['Player'] * players
                 game_config['names'] = ['player'] * players
             current_ui = 'player_setup'
-        if self.start_no_file.smart_draw(72) and not error_messages:
+        if self.start_no_file.smart_draw(72, bkp_pos=bkp_pos) and not error_messages:
             field_colors = [0] * players
             scores = [0] * players
             visible_scores = [0] * players
@@ -713,7 +729,7 @@ class game:
             game_config['limit_mode'] = inverted_victory_mode
             is_game_running = True
             current_ui = 'game'
-        if self.start.smart_draw(72):
+        if self.start.smart_draw(72, bkp_pos=bkp_pos):
             if not error_messages:
                 game_conf_file = filedialog.asksaveasfilename(defaultextension = '.json', filetypes = [('JSON files', '*.json'), ('All files', '*.*')], title = 'Save game data')
                 try:
@@ -729,15 +745,15 @@ class game:
                         game_config['limit_mode'] = inverted_victory_mode
                         file.write(json.dumps(game_config, indent=4, ensure_ascii=True))
                 except:
-                    draw_rect(410, 270, 870, 450)
-                    draw_rect(410, 270, 870, 300, color_bg)
-                    blit(lang['warn_no_file_title'], font_28, (640, 270), True)
-                    blit(lang['warn_no_file_line1'], font_40, (640, 300), True)
-                    blit(lang['warn_no_file_line2'], font_40, (640, 330), True)
+                    draw_rect(410, 270, 870, 450, surface=self.surface)
+                    draw_rect(410, 270, 870, 300, color_bg, surface=self.surface)
+                    blit(lang['warn_no_file_title'], font_28, (640, 270), True, surface=self.surface)
+                    blit(lang['warn_no_file_line1'], font_40, (640, 300), True, surface=self.surface)
+                    blit(lang['warn_no_file_line2'], font_40, (640, 330), True, surface=self.surface)
                     while True:
-                        if self.no_file.smart_draw(60, None, (168, 30, 30), (220, 45, 45), (128, 15, 15)):
+                        if self.no_file.smart_draw(60, bkp_pos, (168, 30, 30), (220, 45, 45), (128, 15, 15)):
                             break
-                        if self.try_again.smart_draw():
+                        if self.try_again.smart_draw(bkp_pos=bkp_pos):
                             return
                         pygame.event.get()
                         pygame.display.update()
@@ -858,8 +874,8 @@ class game:
 
         draw_text_box(str(score_limit), font_info, (1175, 610), self.surface)
         draw_text_box(game_name, font_info, (970, 660), self.surface)
-        blit(lang['ui_score_limit'], font_40, (1170, 618), 'back')
-        blit(lang['ui_game_name'], font_40, (970, 622), False, (255, 255, 255))
+        blit(lang['ui_score_limit'], font_40, (1170, 618), 'back', surface=self.surface)
+        blit(lang['ui_game_name'], font_40, (970, 622), False, (255, 255, 255), surface=self.surface)
 
         # draw the log
         # draw the outline
@@ -868,14 +884,14 @@ class game:
         pygame.draw.rect(self.surface, (255, 255, 255), (1073, 570, 205, 40), 0, 8, 0, 0, 8, 8)
         pygame.draw.rect(self.surface, color_info_outline, (1073, 10, 205, 600), 3, 8)
         # draw the info
-        blit(lang['ui_log'], font_log, (1175, 20), True, color_log_index)
-        blit(lang['log_len'].format(number=len(log)), font_log, (1175, 577), True, color_log_index)
+        blit(lang['ui_log'], font_log, (1175, 20), True, color_log_index, surface=self.surface)
+        blit(lang['log_len'].format(number=len(log)), font_log, (1175, 577), True, color_log_index, surface=self.surface)
         # draw the entries
         for i in range(min(len(log) - log_cursor, 10)):
-            blit(str(i + 1 + log_cursor), font_log, (1079, 65 + 50*i), False, color_log_index)
+            blit(str(i + 1 + log_cursor), font_log, (1079, 65 + 50*i), False, color_log_index, surface=self.surface)
             pygame.draw.rect(self.surface, color_log_background, (1095 + 10*(len(str(i + 1 + log_cursor)) - 1), 55 + 50*i, 177 - 10*(len(str(i + 1 + log_cursor)) - 1), 45), 0, 8)
             pygame.draw.rect(self.surface, color_log_outline, (1095 + 10*(len(str(i + 1 + log_cursor)) - 1), 55 + 50*i, 177 - 10*(len(str(i + 1 + log_cursor)) - 1), 45), 3, 8)
-            blit(log[i + log_cursor], font_data, (1100 + 10*(len(str(i + 1 + log_cursor)) - 1), 60 + 50*i), False, (255, 255, 255))
+            blit(log[i + log_cursor], font_data, (1100 + 10*(len(str(i + 1 + log_cursor)) - 1), 60 + 50*i), False, (255, 255, 255), surface=self.surface)
         
         if log:
             if pygame.key.get_pressed()[pygame.K_DOWN]:
@@ -936,7 +952,7 @@ class game:
         if pygame.event.get(pygame.MOUSEBUTTONDOWN):
             if is_updating:
                 is_updating = False
-            elif self.command_line.is_over():
+            elif self.command_line.is_over(bkp_pos=bkp_pos):
                 pygame.event.get()
                 is_updating = not is_updating
         pygame.draw.rect(self.surface, (240, 240, 240), (10, 660, 950, 50))
@@ -1262,7 +1278,7 @@ class game:
                         else:
                             scores[int(args[2]) - 1] += int(args[3])
                             game_events.add_event(True, 'increase_player', max_fps, int(args[2]) - 1, int(args[3]) / max_fps)
-                            game_events.add_event(False, 'score_change', max_fps*5)
+                            game_events.add_event(False, 'score_change', max_fps*(5 if voice else 0.5))
                             log.append(f'P{int(args[2])}+{int(args[3])}')
                             log_cursor = max(0, len(log) - 10)
                             narrate(lang['narrator_add_points'].format(amount=args[3],player=names[int(args[2]) - 1]))
@@ -1286,13 +1302,13 @@ class game:
                         else:
                             scores[int(args[2]) - 1] -= int(args[3])
                             game_events.add_event(True, 'increase_player', max_fps, int(args[2]) - 1, -int(args[3]) / max_fps)
-                            game_events.add_event(False, 'score_change', max_fps*5)
+                            game_events.add_event(False, 'score_change', max_fps*(5 if voice else 0.5))
                             log.append(f'P{int(args[2])}-{int(args[3])}')
                             log_cursor = max(0, len(log) - 10)
                             narrate(lang['narrator_take_points'].format(amount=args[3],player=names[int(args[2]) - 1]))
                     elif args[1] == 'set': ## SET ARGUMENT
                         scores[int(args[2]) - 1] = int(args[3]) # won't be smooth
-                        game_events.add_event(False, 'score_change', max_fps*4)
+                        game_events.add_event(False, 'score_change', max_fps*(4 if voice else 0.5))
                         log.append(f'P{int(args[2])}={int(args[3])}')
                         log_cursor = max(0, len(log) - 10)
                         narrate(lang['narrator_set_points'].format(amount=args[3],player=names[int(args[2]) - 1]))
@@ -1332,7 +1348,7 @@ class game:
                                 game_events.add_event(True, 'increase_player', max_fps, i, 50 / max_fps)
                                 game_events.add_event(True, 'blink', max_fps*blink_time - max_fps//2 + 1, i, 1)
                         narrate(lang['narrator_end_6'].format(name=names[int(args[2]) - 1]))
-                        game_events.add_event(False, 'score_change', max_fps*6.5)
+                        game_events.add_event(False, 'score_change', max_fps*(6.5 if voice else 0.5))
                 else:
                     print(lang['err_incomplete_command'].format(command=command))
             elif args[0] == 'rename':
@@ -1502,6 +1518,8 @@ ui_settings = settings()
 ui_game = game()
 
 while True:
+    bkp_pos0 = pygame.mouse.get_pos()
+    bkp_pos = (int(bkp_pos0[0] / scale), int(bkp_pos0[1] / scale))
     if pygame.event.get(pygame.QUIT):
         if is_game_running and game_conf_file:
             game_config['log'] = log
@@ -1574,5 +1592,7 @@ while True:
     elif current_ui == 'game':
         ui_game.draw_game()
         ui_game.process_commands()
+    transformed = pygame.transform.smoothscale(window, (int(1280*scale), int(720*scale)))
+    final_window.blit(transformed, (0, 0))
     pygame.display.update()
     gametick.tick(max_fps)

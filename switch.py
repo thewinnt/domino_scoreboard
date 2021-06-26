@@ -1,5 +1,5 @@
 import pygame
-class switch():
+class Switch:
     def __init__(self, x, y, surface, default_color=(0, 204, 204), hover_color=(0, 255, 255), outline_color=(0, 0, 0), enable_color=(47, 194, 0), disable_color=(207, 0, 0)):
         '''A switch that acts like a button, based on the button class'''
         self.x = x
@@ -35,7 +35,7 @@ class switch():
             pygame.draw.circle(self.surface, self.disable_color, (self.x + 16, self.y + 18), 18)
             pygame.draw.circle(self.surface, self.outline_color, (self.x + 16, self.y + 18), 18, 4)
 
-    def is_over(self, bkp_pos = None) -> bool:
+    def is_over(self, bkp_pos=None) -> bool:
         '''Returns true if mouse is over'''
         if bkp_pos == None:
             self.pos = pygame.mouse.get_pos()

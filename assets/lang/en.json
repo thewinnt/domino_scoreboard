@@ -33,6 +33,7 @@
     "score_limit": "Score limit",
     "victory_mode": "Victory for the player with highest score",
     "save_file": "Save file",
+    "image_scale": "Image scale",
     "game_will_be_saved": "(game will be saved)",
     "player_name_desc": "Player {num}",
     "new_game": "New game",

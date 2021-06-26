@@ -59,12 +59,15 @@ class DropdownList:
         for i in self.options:
             self.ren_opt.append(self.font.render(i, 1, self.color_text))
 
-    def update(self) -> int:
+    def update(self, bkp_pos=None) -> int:
         '''Draws the list, updates it and returns the last clicked value'''
         hbo = self.hitbox_options # this is much shorter
 
         ## gather events
-        pos = pygame.mouse.get_pos()
+        if bkp_pos:
+            pos = bkp_pos
+        else:
+            pos = pygame.mouse.get_pos()
         if pygame.mouse.get_pressed()[0] and not self.was_pressed:
             self.was_pressed = True
             if self.open:

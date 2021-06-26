@@ -33,6 +33,7 @@
     "score_limit": "Лимит очков",
     "victory_mode": "Побеждает тот, у кого больше всего очков",
     "save_file": "Файл сохранения",
+    "image_scale": "Масштаб изображения",
     "game_will_be_saved": "(игра будет сохранена)",
     "player_name_desc": "Игрок {num}",
     "new_game": "Новая игра",

@@ -1,5 +1,5 @@
 import pygame
-class hyperlink:
+class Hyperlink:
     def __init__(self, color, x, y, text):
         '''Not really a link, just a button that looks like one'''
         self.color = color
@@ -25,7 +25,7 @@ class hyperlink:
         else:
             return False
 
-    def smart_draw(self, surface, font_size = 60, bkp_pos = None) -> bool:
+    def smart_draw(self, surface, font_size=60, bkp_pos=None) -> bool:
         '''Draws the link and returns its click state'''
         self.draw(surface, font_size)
         if not self.was_pressed and pygame.mouse.get_pressed()[0]:
