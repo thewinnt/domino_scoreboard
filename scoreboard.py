@@ -90,8 +90,10 @@ icon = pygame.image.load("assets/window.png")
 pygame.display.set_icon(icon)
 final_window = pygame.display.set_mode((int(1280 * scale), int(720 * scale)))
 window = pygame.Surface((1280, 720))
-pygame.display.set_caption(f"{lang['program_name']} (v. 1.0 release candidate 3)")
-game_version = "v. 1.0-rc3"
+def upd_win_caption(): # otherwise i will forget to change the value in settings
+    pygame.display.set_caption(f"{lang['program_name']} (v. 1.0 release candidate 4)")
+upd_win_caption()
+game_version = "v. 1.0-rc4"
 
 font_28 = pygame.font.Font('assets/denhome.otf', 28)
 font_40 = pygame.font.Font('assets/denhome.otf', 40)
@@ -498,6 +500,7 @@ class settings:
             ui_menu.__init__()
             ui_game.__init__() # we need to update all the buttons since they are defined once in __init__ and don't update immediately
             global_config.set('lang', lang_type)
+            upd_win_caption()
             message = lang['enter_command']
             try:
                 with open(f'assets/command_help_{lang_type}.txt', 'r', -1, 'utf-8') as help_file:
@@ -1556,11 +1559,11 @@ while True:
                 for k in range(players):
                     if scores[k] == j:
                         winners.append(k)
-                        game_events.add_event(True, 'blink', max_fps*blink_time - max_fps//2 - 1, k, 2)
+                        game_events.add_event(True, 'blink', max_fps*blink_time - max_fps//2 + 1, k, 2)
                         log.append(f'{k+1}W@{scores[k]}')
                         log_cursor = max(0, len(log) - 10)
                     else:
-                        game_events.add_event(True, 'blink', max_fps*blink_time - max_fps//2 - 1, k, 1)
+                        game_events.add_event(True, 'blink', max_fps*blink_time - max_fps//2 + 1, k, 1)
                         log.append(f'{k+1}F@{scores[k]}')
                         log_cursor = max(0, len(log) - 10)
                 game_events.add_event(False, 'clear_score', max_fps*blink_time - max_fps//2 - 1)
