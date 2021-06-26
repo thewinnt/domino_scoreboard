@@ -374,7 +374,7 @@ class menu:
             predefine_variables() # we don't want to reload the previous game
             ui_game.__init__() # that is needed too
             current_ui = 'setup'
-        blit(game_version, font_40, (10, 680))
+        blit(game_version, font_40, (10, 680), surface=self.surface)
 
 
 class settings:
