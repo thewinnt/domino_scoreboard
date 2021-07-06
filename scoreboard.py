@@ -91,9 +91,9 @@ pygame.display.set_icon(icon)
 final_window = pygame.display.set_mode((int(1280 * scale), int(720 * scale)))
 window = pygame.Surface((1280, 720))
 def upd_win_caption(): # otherwise i will forget to change the value in settings
-    pygame.display.set_caption(f"{lang['program_name']} (v. 1.0 release candidate 5)")
+    pygame.display.set_caption(f"{lang['program_name']} (v. 1.0 release candidate 6)")
 upd_win_caption()
-game_version = "v. 1.0-rc5"
+game_version = "v. 1.0-rc6"
 
 font_28 = pygame.font.Font('assets/denhome.otf', 28)
 font_40 = pygame.font.Font('assets/denhome.otf', 40)
@@ -1192,6 +1192,9 @@ class game:
                                 success = True
                             if success:
                                 visible[3] = '§6' + visible[3] + '§7'
+                            else:
+                                visible[3] = '§4' + visible[3]
+                                valid = False
                         elif len(args) == 3 + players:
                             for i in range(len(args) - 3):
                                 try: # i know it's a bit messy, but no one's gonna read this part anyway =)
