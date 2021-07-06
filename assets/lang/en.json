@@ -28,6 +28,7 @@
     "show_goal_progress": "Goal progress",
     "blink_time": "Player field blinking time",
     "language": "Language",
+    "framerate": "Max framerate",
     "game_settings": "Game settings",
     "game_name": "Game name",
     "score_limit": "Score limit",

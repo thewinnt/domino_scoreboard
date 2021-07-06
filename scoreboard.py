@@ -91,9 +91,9 @@ pygame.display.set_icon(icon)
 final_window = pygame.display.set_mode((int(1280 * scale), int(720 * scale)))
 window = pygame.Surface((1280, 720))
 def upd_win_caption(): # otherwise i will forget to change the value in settings
-    pygame.display.set_caption(f"{lang['program_name']} (v. 1.0 release candidate 4)")
+    pygame.display.set_caption(f"{lang['program_name']} (v. 1.0 release candidate 5)")
 upd_win_caption()
-game_version = "v. 1.0-rc4"
+game_version = "v. 1.0-rc5"
 
 font_28 = pygame.font.Font('assets/denhome.otf', 28)
 font_40 = pygame.font.Font('assets/denhome.otf', 40)
@@ -326,7 +326,7 @@ class menu:
             self.btn_new_file.y = 280
             self.btn_import.y = 365
             self.btn_settings.y = 450
-            if self.btn_continue.smart_draw(72) and pygame.event.get(pygame.MOUSEBUTTONDOWN):
+            if self.btn_continue.smart_draw(72, bkp_pos) and pygame.event.get(pygame.MOUSEBUTTONDOWN):
                 current_ui = 'game'
         else:
             self.btn_new_file.y = 250
@@ -395,13 +395,14 @@ class settings:
                                                    color_hover_base=(0, 240, 240), color_hover_origin=color_bg,
                                                    color_hover_scroll=(0, 0, 0))
         self.scale = text_field.TextField(1070, 355, 200, 45, str(scale), font_50, self.surface, 'float')
+        self.fps = text_field.TextField(1070, 405, 200, 45, str(max_fps), font_50, self.surface, 'int')
         # game settings
-        self.game_name = text_field.TextField(1070, 450, 200, 45, game_name, font_50, self.surface)
-        self.score_lim = text_field.TextField(1070, 500, 200, 45, score_limit, font_50, self.surface, 'int')
-        self.score_mode = switch.Switch(1180, 550, self.surface)
-        self.filename = button.Button(color_board_outline, 1120, 600, 150, 40, self.surface, lang['btn_change_file'])
-        self.goto_player_name = button.Button(color_board_outline, 20, 650, 275, 60, self.surface, lang['btn_edit_player_names'])
-        self.go_menu = button.Button(color_board_outline, 305, 650, 275, 60, self.surface, lang['btn_menu'])
+        self.game_name = text_field.TextField(1070, 480, 200, 45, game_name, font_50, self.surface)
+        self.score_lim = text_field.TextField(1070, 530, 200, 45, score_limit, font_50, self.surface, 'int')
+        self.score_mode = switch.Switch(1180, 580, self.surface)
+        self.filename = button.Button(color_board_outline, 1120, 630, 150, 40, self.surface, lang['btn_change_file'])
+        self.goto_player_name = button.Button(color_board_outline, 20, 680, 150, 35, self.surface, lang['btn_edit_player_names'], font_40)
+        self.go_menu = button.Button(color_board_outline, 175, 680, 150, 35, self.surface, lang['btn_menu'], font_40)
         # player names
         self.player_names = []
         for i in range(18):
@@ -423,6 +424,7 @@ class settings:
         global command_help
         global scale
         global final_window
+        global max_fps
         if not was_pressed_esc and pygame.key.get_pressed()[pygame.K_ESCAPE]:
             was_pressed_esc = True
             is_clicked = True
@@ -461,6 +463,7 @@ class settings:
         blit(lang['blink_time'], font_72, (20, 230), surface=self.surface)
         blit(lang['language'], font_72, (20, 280), surface=self.surface)
         blit(lang['image_scale'], font_72, (20, 335), surface=self.surface)
+        blit(lang['framerate'], font_72, (20, 385), surface=self.surface)
         if allow_tts:
             if self.voice_enabled.smart_draw(global_config.get('voice'), bkp_pos=bkp_pos):
                 voice = not voice
@@ -492,6 +495,12 @@ class settings:
             scale = temp
             final_window = pygame.display.set_mode((int(1280 * scale), int(720 * scale)))
             global_config.set('image_scale', scale)
+        temp = self.fps.draw(bkp_pos=bkp_pos)
+        if temp is not False:
+            if temp > 5:
+                max_fps = temp
+            else:
+                max_fps = 5 # anything below 5 fps is pretty much unusable
         temp = self.language.update(bkp_pos=bkp_pos)
         if temp is not None:
             lang_type = available_lang_ids[temp]
@@ -521,13 +530,13 @@ class settings:
         global game_conf_file
         global inverted_victory_mode
         global is_game_running
-        blit(lang['game_settings'], font_40, (20, 400), False, (100, 100, 100), surface=self.surface)
-        blit(lang['game_name'], font_72, (20, 430), surface=self.surface)
-        blit(lang['score_limit'], font_72, (20, 480), surface=self.surface)
-        blit(lang['victory_mode'], font_72, (20, 530), surface=self.surface)
-        blit(lang['save_file'], font_72, (20, 580), surface=self.surface)
-        blit(lang['game_will_be_saved'], font_40, (590, 660), False, (85, 85, 85), surface=self.surface)
-        blit(game_conf_file, font_50, (1115, 595), 'back', surface=self.surface)
+        blit(lang['game_settings'], font_40, (20, 435), False, (100, 100, 100), surface=self.surface)
+        blit(lang['game_name'], font_72, (20, 460), surface=self.surface)
+        blit(lang['score_limit'], font_72, (20, 510), surface=self.surface)
+        blit(lang['victory_mode'], font_72, (20, 560), surface=self.surface)
+        blit(lang['save_file'], font_72, (20, 610), surface=self.surface)
+        blit(lang['game_will_be_saved'], font_40, (330, 680), False, (85, 85, 85), surface=self.surface)
+        blit(game_conf_file, font_50, (1115, 625), 'back', surface=self.surface)
         if self.goto_player_name.smart_draw(66, bkp_pos=bkp_pos):
             for i in range(players):
                 self.player_names[i].text = names[i]
@@ -610,11 +619,11 @@ class game:
         self.color_index = [color_board_bg, color_red, color_green]
 
         self.command_line = text_field.TextField(10, 660, 950, 50, command, font_cmd, self.surface)
-        self.cmd_desc = {'score': '§fscore <add|remove|set|limit> §b...',
+        self.cmd_desc = {'score': '§fscore <add|remove|set|limit> ...',
                          'double': '§fdouble §b<0|6> §6<player: int>',
                          'rename': '§frename §b<player: int|game> §6<name: str>',
                          'menu': '§fmenu §c[no_save]',
-                         'file': '§ffile <set|reload|save> §b...',
+                         'file': '§ffile <set|reload|save> ...',
                          'log': '§flog <add|remove> ...',
                          'goal': '§fgoal §b<player: int> §f<fixed|relative> ...',
                          'victory': '§fvictory §b<player: int> §6<value: int>',
@@ -1173,7 +1182,16 @@ class game:
                         else:
                             message = self.set_desc[args[1]]
                         visible[2] = '§3' + visible[2]
-                        if len(args) == 4 or len(args) == 3 + players:
+                        if args[2] != 'all':
+                            try: # i know it's a bit messy, but no one's gonna read this part anyway =)
+                                int(args[3])
+                            except:
+                                success = False
+                            else:
+                                success = True
+                            if success:
+                                visible[3] = '§6' + visible[3] + '§7'
+                        elif len(args) == 3 + players:
                             for i in range(len(args) - 3):
                                 try: # i know it's a bit messy, but no one's gonna read this part anyway =)
                                     int(args[i + 3])
@@ -1375,6 +1393,7 @@ class game:
                 except:
                     print(lang['err_incomplete_command'].format(command=command))
             elif args[0] == 'menu':
+                log.append('exit')
                 if game_conf_file and len(command) < 6: # if there's a save file and no_save wasn't specified:
                     game_config['log'] = log
                     game_config['goals'] = goals
