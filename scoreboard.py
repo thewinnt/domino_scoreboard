@@ -85,15 +85,16 @@ pygame.mixer.init()
 
 gametick = pygame.time.Clock()
 game_events = event_handler.EventHandler()
+game_events.add_event(False, 'show_blinker', 15)
 
 icon = pygame.image.load("assets/window.png")
 pygame.display.set_icon(icon)
 final_window = pygame.display.set_mode((int(1280 * scale), int(720 * scale)))
 window = pygame.Surface((1280, 720))
 def upd_win_caption(): # otherwise i will forget to change the value in settings
-    pygame.display.set_caption(f"{lang['program_name']} (v. 1.0 release candidate 6)")
+    pygame.display.set_caption(f"{lang['program_name']} (v. 1.0 release candidate 7)")
 upd_win_caption()
-game_version = "v. 1.0-rc6"
+game_version = "v. 1.0-rc7"
 
 font_28 = pygame.font.Font('assets/denhome.otf', 28)
 font_40 = pygame.font.Font('assets/denhome.otf', 40)
@@ -968,6 +969,9 @@ class game:
             elif self.command_line.is_over(bkp_pos=bkp_pos):
                 pygame.event.get()
                 is_updating = not is_updating
+        elif pygame.key.get_pressed()[pygame.K_SPACE] and not is_updating:
+            pygame.event.get()
+            is_updating = not is_updating
         pygame.draw.rect(self.surface, (240, 240, 240), (10, 660, 950, 50))
         if is_updating:
             command = self.command_line.update()
@@ -1275,6 +1279,9 @@ class game:
             show = show + i + ' '
         fancy_blit.fancy_blit(message, font_msg, (15, 615), self.surface, background_color=color_board_bg)
         fancy_blit.fancy_blit(show, font_cmd, (15, 660), self.surface)
+        width = font_cmd.size(command)[0]
+        if game_events.get_events('show_blinker'):
+            pygame.draw.rect(self.surface, (0, 0, 0), (17 + width, 670, 2, 30))
         pygame.draw.rect(self.surface, (0, 0, 0), (10, 660, 950, 50), int(is_updating) * 2 + 2) # i don't want to set the outline width separately
 
         # process
@@ -1567,6 +1574,10 @@ while True:
         if i['name'] == 'increase_player': # arg1 is the player, arg2 is the score
             visible_scores[i['arg1']] += i['arg2']
             changing_score = True
+        if i['name'] == 'show_blinker':
+            game_events.add_event(False, 'hide_blinker', max_fps / 2)
+        if i['name'] == 'hide_blinker':
+            game_events.add_event(False, 'show_blinker', max_fps / 2)
         if i['name'] == 'blink' and blink_time > 0: # arg1 is the player, arg2 is the color
             if not i['time_left'] % max_fps:
                 field_colors[i['arg1']] = 0
