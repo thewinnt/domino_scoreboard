@@ -501,6 +501,7 @@ class settings:
                 max_fps = temp
             else:
                 max_fps = 5 # anything below 5 fps is pretty much unusable
+                self.fps.text = '5'
         temp = self.language.update(bkp_pos=bkp_pos)
         if temp is not None:
             lang_type = available_lang_ids[temp]
