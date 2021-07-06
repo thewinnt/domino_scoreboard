@@ -1183,7 +1183,7 @@ class game:
                         else:
                             message = self.set_desc[args[1]]
                         visible[2] = '§3' + visible[2]
-                        if args[2] != 'all':
+                        if args[2] != 'all' and len(args) > 3:
                             try: # i know it's a bit messy, but no one's gonna read this part anyway =)
                                 int(args[3])
                             except:
