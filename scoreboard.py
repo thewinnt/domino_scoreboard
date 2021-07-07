@@ -92,9 +92,9 @@ pygame.display.set_icon(icon)
 final_window = pygame.display.set_mode((int(1280 * scale), int(720 * scale)))
 window = pygame.Surface((1280, 720))
 def upd_win_caption(): # otherwise i will forget to change the value in settings
-    pygame.display.set_caption(f"{lang['program_name']} (v. 1.0 release candidate 7)")
+    pygame.display.set_caption(f"{lang['program_name']} (v. 1.0 release candidate 8)")
 upd_win_caption()
-game_version = "v. 1.0-rc7"
+game_version = "v. 1.0-rc8"
 
 font_28 = pygame.font.Font('assets/denhome.otf', 28)
 font_40 = pygame.font.Font('assets/denhome.otf', 40)
@@ -338,7 +338,8 @@ class menu:
             try:
                 with open(game_conf_file, 'r', -1, 'utf-8') as file:
                     game_config = json.load(file)
-            except FileNotFoundError:
+            except:
+                game_conf_file = ''
                 return
             try:
                 game_name = game_config['game_name']
@@ -503,6 +504,7 @@ class settings:
             else:
                 max_fps = 5 # anything below 5 fps is pretty much unusable
                 self.fps.text = '5'
+            global_config.set('max_fps', max_fps)
         temp = self.language.update(bkp_pos=bkp_pos)
         if temp is not None:
             lang_type = available_lang_ids[temp]
@@ -572,7 +574,7 @@ class settings:
             inverted_victory_mode = not inverted_victory_mode
         if self.filename.smart_draw(bkp_pos=bkp_pos):
             temp = filedialog.asksaveasfilename(defaultextension = '.json', filetypes = [('JSON files', '*.json'), ('All files', '*.*')], title = 'Save game data')
-            if temp != '':
+            if temp:
                 game_conf_file = temp
 
     def draw_player_list(self):
@@ -1187,7 +1189,7 @@ class game:
                         else:
                             message = self.set_desc[args[1]]
                         visible[2] = '§3' + visible[2]
-                        if args[2] != 'all' and len(args) > 3:
+                        if args[2] != 'all' and len(args) == 4:
                             try: # i know it's a bit messy, but no one's gonna read this part anyway =)
                                 int(args[3])
                             except:
@@ -1195,11 +1197,11 @@ class game:
                             else:
                                 success = True
                             if success:
-                                visible[3] = '§6' + visible[3] + '§7'
+                                visible[3] = '§6' + visible[3]
                             else:
                                 visible[3] = '§4' + visible[3]
                                 valid = False
-                        elif len(args) == 3 + players:
+                        elif len(args) > 3:
                             for i in range(len(args) - 3):
                                 try: # i know it's a bit messy, but no one's gonna read this part anyway =)
                                     int(args[i + 3])
@@ -1219,6 +1221,7 @@ class game:
                             if len(args) > 3:
                                 visible[3] = '§4' + visible[3]
                                 valid = False
+
                     else:
                         visible[2] = '§4' + visible[2]
                         valid = False
@@ -1277,11 +1280,16 @@ class game:
         show = ''
         for i in visible:
             show = show + i + ' '
+        sections = show.split('§')
+        if len(sections[-1]) > 0 and sections[-1][0] in '0123456789abcdef':
+            color_blinker = fancy_blit.COLOR_INDEX[sections[-1][0]]
+        else:
+            color_blinker = (0, 0, 0)
         fancy_blit.fancy_blit(message, font_msg, (15, 615), self.surface, background_color=color_board_bg)
         fancy_blit.fancy_blit(show, font_cmd, (15, 660), self.surface)
         width = font_cmd.size(command)[0]
         if game_events.get_events('show_blinker'):
-            pygame.draw.rect(self.surface, (0, 0, 0), (17 + width, 670, 2, 30))
+            pygame.draw.rect(self.surface, color_blinker, (17 + width, 670, 2, 30))
         pygame.draw.rect(self.surface, (0, 0, 0), (10, 660, 950, 50), int(is_updating) * 2 + 2) # i don't want to set the outline width separately
 
         # process
@@ -1569,11 +1577,9 @@ while True:
         global_config.save()
         pygame.quit()
         exit(0)
-    changing_score = False
     for i in game_events.tick():
         if i['name'] == 'increase_player': # arg1 is the player, arg2 is the score
             visible_scores[i['arg1']] += i['arg2']
-            changing_score = True
         if i['name'] == 'show_blinker':
             game_events.add_event(False, 'hide_blinker', max_fps / 2)
         if i['name'] == 'hide_blinker':
@@ -1600,7 +1606,7 @@ while True:
                         game_events.add_event(True, 'blink', max_fps*blink_time - max_fps//2 + 1, k, 1)
                         log.append(f'{k+1}F@{scores[k]}')
                         log_cursor = max(0, len(log) - 10)
-                game_events.add_event(False, 'clear_score', max_fps*blink_time - max_fps//2 - 1)
+                game_events.add_event(False, 'clear_score', max_fps*blink_time - max_fps//2 + 1)
                 win_names = []
                 for m in winners:
                     victories[m] += 1
@@ -1616,7 +1622,7 @@ while True:
                     narrate(lang['narrator_victory_single'].format(player=win_final_names, score=j))
         if i['name'] == 'clear_score':
             scores = [0] * players
-    if not changing_score:
+    if not game_events.get_events('increase_player'):
         visible_scores = scores.copy()
     if current_ui == "menu":
         ui_menu.draw()
